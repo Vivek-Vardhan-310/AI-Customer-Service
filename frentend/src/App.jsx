@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
 import { createClient } from '@supabase/supabase-js'
 import './App.css';
 
@@ -737,8 +737,8 @@ function MyTickets() {
           </thead>
           <tbody>
             {filtered.map(ticket => (
-              <>
-                <tr key={ticket.id} className={`ticket-row ${expandedId === ticket.id ? 'expanded' : ''}`} onClick={() => setExpandedId(expandedId === ticket.id ? null : ticket.id)}>
+              <Fragment key={ticket.id}>
+                <tr className={`ticket-row ${expandedId === ticket.id ? 'expanded' : ''}`} onClick={() => setExpandedId(expandedId === ticket.id ? null : ticket.id)}>
                   <td className="ticket-id-cell">{ticket.id}</td>
                   <td>{ticket.product}</td>
                   <td>{ticket.category}</td>
@@ -748,7 +748,7 @@ function MyTickets() {
                   <td><button className="btn-sm" onClick={(e) => { e.stopPropagation(); setExpandedId(expandedId === ticket.id ? null : ticket.id); }}>View</button></td>
                 </tr>
                 {expandedId === ticket.id && (
-                  <tr key={`${ticket.id}-detail`} className="ticket-detail-row">
+                  <tr className="ticket-detail-row">
                     <td colSpan="7">
                       <div className="ticket-detail">
                         <p className="ticket-description">{ticket.description}</p>
@@ -771,7 +771,7 @@ function MyTickets() {
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>
@@ -954,6 +954,25 @@ function Feedback({ showToast }) {
   const [comment, setComment] = useState('');
   const [selectedTicket, setSelectedTicket] = useState('');
   const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (e) => {
+    if (e) {
+      e.preventDefault();
+    }
+
+    if (!selectedTicket) {
+      showToast?.('Please select a ticket before submitting feedback.', 'error');
+      return;
+    }
+
+    if (!rating) {
+      showToast?.('Please select a rating before submitting feedback.', 'error');
+      return;
+    }
+
+    setSubmitted(true);
+    showToast?.('Thank you for your feedback!', 'success');
+  };
 
   if (submitted) {
     return (
