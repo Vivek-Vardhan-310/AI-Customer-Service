@@ -1,0 +1,12 @@
+{
+  "tickets": [],
+  "feedback": [],
+  "products": [
+    {
+      "id": "prod-1",
+      "name": "ThinkPad X1 Carbon Gen 11",
+      "serial": "PF-4R2K7X",
+      "warranty_days_left": 210
+    }
+  ]
+}
