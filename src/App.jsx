@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createClient } from '@supabase/supabase-js'
 import './App.css';
 
 /* ─── Mock Data ──────────────────────────────────────────── */
@@ -64,20 +65,29 @@ function Icon({ name, size = 20, color = 'currentColor' }) {
 }
 
 /* ─── Login Page ──────────────────────────────────────────── */
-function LoginPage({ onLogin }) {
+function LoginPage({ onLogin, onSwitchToSignup, loading, showToast }) {
   const [tab, setTab] = useState('customer');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
-      setError('Please fill in all fields');
+      const msg = 'Please fill in all fields';
+      setError(msg);
+      showToast?.(msg, 'error');
       return;
     }
-    onLogin({ email, role: tab });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      const msg = 'Please enter a valid email address';
+      setError(msg);
+      showToast?.(msg, 'error');
+      return;
+    }
+    await onLogin({ email, role: tab, password });
   };
 
   return (
@@ -108,35 +118,194 @@ function LoginPage({ onLogin }) {
           <h2 className="login-card-title">Welcome back</h2>
           <p className="login-card-subtitle">Sign in to your support account</p>
           <div className="login-tabs">
-            <button className={`login-tab ${tab === 'customer' ? 'active' : ''}`} onClick={() => setTab('customer')}>Customer Login</button>
-            <button className={`login-tab ${tab === 'admin' ? 'active' : ''}`} onClick={() => setTab('admin')}>Admin Login</button>
+            <button className={`login-tab ${tab === 'customer' ? 'active' : ''}`} onClick={() => setTab('customer')} disabled={loading}>Customer Login</button>
+            <button className={`login-tab ${tab === 'admin' ? 'active' : ''}`} onClick={() => setTab('admin')} disabled={loading}>Admin Login</button>
           </div>
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-group">
               <label className="form-label">Email address</label>
-              <input type="email" className="form-input" placeholder="name@company.com" value={email} onChange={(e) => { setEmail(e.target.value); setError(''); }} />
+              <input type="email" className="form-input" placeholder="name@company.com" value={email} onChange={(e) => { setEmail(e.target.value); setError(''); }} disabled={loading} />
             </div>
             <div className="form-group">
               <label className="form-label">Password</label>
-              <input type="password" className="form-input" placeholder="••••••••" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} />
+              <div className="password-input-wrapper">
+                <input type={showPassword ? "text" : "password"} className="form-input" placeholder="••••••••" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} disabled={loading} />
+                <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)} disabled={loading}>
+                  <Icon name={showPassword ? "eye" : "eye"} size={16} color="#94a3b8" />
+                </button>
+              </div>
             </div>
             <div className="form-row">
               <label className="checkbox-label">
-                <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+                <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} disabled={loading} />
                 <span className="checkbox-custom"></span>
                 <span>Remember me</span>
               </label>
               <a href="#" className="forgot-link" onClick={(e) => e.preventDefault()}>Forgot password?</a>
             </div>
             {error && <div className="form-error">{error}</div>}
-            <button type="submit" className="btn-primary login-btn">Sign In</button>
+            <button type="submit" className="btn-primary login-btn" disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
           </form>
-          <p className="login-footer-text">New here? <a href="#" className="create-account-link" onClick={(e) => e.preventDefault()}>Create account</a></p>
+          <p className="login-footer-text">New here? <a href="#" className="create-account-link" onClick={(e) => { e.preventDefault(); onSwitchToSignup(); }}>Create account</a></p>
         </div>
       </div>
     </div>
   );
 }
+
+/* ─── Signup Page ──────────────────────────────────────────── */
+function SignupPage({ onSignup, onSwitchToLogin, loading, showToast }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const validatePassword = (pwd) => {
+    return pwd.length >= 8;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!email || !password || !confirmPassword) {
+      const msg = 'Please fill in all fields';
+      setError(msg);
+      showToast?.(msg, 'error');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      const msg = 'Please enter a valid email address';
+      setError(msg);
+      showToast?.(msg, 'error');
+      return;
+    }
+    if (!validatePassword(password)) {
+      const msg = 'Password must be at least 8 characters';
+      setError(msg);
+      showToast?.(msg, 'error');
+      return;
+    }
+    if (password !== confirmPassword) {
+      const msg = 'Passwords do not match';
+      setError(msg);
+      showToast?.(msg, 'error');
+      return;
+    }
+    const created = await onSignup({ email, password });
+    if (created) {
+      setSuccess(true);
+    }
+  };
+
+  if (success) {
+    return (
+      <div className="login-page">
+        <div className="login-left">
+          <img src="https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=1200" alt="Professional workspace" className="login-bg-image" />
+          <div className="login-overlay">
+            <div className="login-brand">
+              <div className="login-logo">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                  <rect width="40" height="40" rx="10" fill="#2563EB"/>
+                  <path d="M12 28V12h4v12h8v4H12z" fill="white"/>
+                </svg>
+              </div>
+              <h1 className="login-title">Lenovo Support<span className="accent-dot">.</span></h1>
+            </div>
+          </div>
+        </div>
+        <div className="login-right">
+          <div className="login-card">
+            <div className="success-icon-wrap" style={{marginBottom: '16px'}}>
+              <Icon name="check-circle" size={48} color="#10b981" />
+            </div>
+            <h2 className="login-card-title">Account Created!</h2>
+            <p className="login-card-subtitle">Your account has been successfully created. You can now sign in.</p>
+            <button className="btn-primary login-btn" onClick={onSwitchToLogin} style={{marginTop: '24px'}}>
+              Return to Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="login-page">
+      <div className="login-left">
+        <img src="https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=1200" alt="Professional workspace" className="login-bg-image" />
+        <div className="login-overlay">
+          <div className="login-brand">
+            <div className="login-logo">
+              <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                <rect width="40" height="40" rx="10" fill="#2563EB"/>
+                <path d="M12 28V12h4v12h8v4H12z" fill="white"/>
+              </svg>
+            </div>
+            <h1 className="login-title">Lenovo Support<span className="accent-dot">.</span></h1>
+            <p className="login-subtitle">Enterprise Customer Support Portal</p>
+            <p className="login-description">Get instant help with your ThinkPad products. Track warranties, raise complaints, and connect with AI-powered support — all in one place.</p>
+            <div className="login-features">
+              <div className="login-feature"><Icon name="check-circle" size={16} color="#2563EB" /><span>24/7 AI Support</span></div>
+              <div className="login-feature"><Icon name="check-circle" size={16} color="#2563EB" /><span>Real-time Ticket Tracking</span></div>
+              <div className="login-feature"><Icon name="check-circle" size={16} color="#2563EB" /><span>Warranty Management</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="login-right">
+        <div className="login-card">
+          <h2 className="login-card-title">Create Account</h2>
+          <p className="login-card-subtitle">Join Lenovo Support Portal</p>
+          <form onSubmit={handleSubmit} className="login-form">
+            <div className="form-group">
+              <label className="form-label">Email address</label>
+              <input type="email" className="form-input" placeholder="name@company.com" value={email} onChange={(e) => { setEmail(e.target.value); setError(''); }} disabled={loading} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <div className="password-input-wrapper">
+                <input type={showPassword ? "text" : "password"} className="form-input" placeholder="At least 8 characters" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} disabled={loading} />
+                <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)} disabled={loading}>
+                  <Icon name="eye" size={16} color="#94a3b8" />
+                </button>
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Confirm Password</label>
+              <div className="password-input-wrapper">
+                <input type={showConfirm ? "text" : "password"} className="form-input" placeholder="••••••••" value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }} disabled={loading} />
+                <button type="button" className="password-toggle" onClick={() => setShowConfirm(!showConfirm)} disabled={loading}>
+                  <Icon name="eye" size={16} color="#94a3b8" />
+                </button>
+              </div>
+            </div>
+            {error && <div className="form-error">{error}</div>}
+            <button type="submit" className="btn-primary login-btn" disabled={loading}>
+              {loading ? 'Creating Account...' : 'Create Account'}
+            </button>
+          </form>
+          <p className="login-footer-text">Already have an account? <a href="#" className="create-account-link" onClick={(e) => { e.preventDefault(); onSwitchToLogin(); }}>Sign in</a></p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Simple supabase helper used by App
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+let supabase = null
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey)
+} else {
+  console.warn('VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY not set — Supabase client disabled.')
+}
+export { supabase }
 
 /* ─── Sidebar ──────────────────────────────────────────── */
 function Sidebar({ activeSection, onNavigate }) {
@@ -283,7 +452,7 @@ function DashboardHero() {
 }
 
 /* ─── My Products ──────────────────────────────────── */
-function MyProducts() {
+function MyProducts({ onDevClick }) {
   return (
     <section id="products" className="section">
       <div className="section-header">
@@ -306,9 +475,9 @@ function MyProducts() {
             <div className="spec"><span className="spec-label">Category</span><span className="spec-value">Ultrabook / Business Laptop</span></div>
           </div>
           <div className="product-actions">
-            <button className="btn-secondary"><Icon name="eye" size={16} /><span>View Details</span></button>
-            <button className="btn-secondary"><Icon name="alert-circle" size={16} /><span>Raise Complaint</span></button>
-            <button className="btn-secondary"><Icon name="shield" size={16} /><span>Check Warranty</span></button>
+            <button className="btn-secondary" onClick={onDevClick}><Icon name="eye" size={16} /><span>View Details</span></button>
+            <button className="btn-secondary" onClick={onDevClick}><Icon name="alert-circle" size={16} /><span>Raise Complaint</span></button>
+            <button className="btn-secondary" onClick={onDevClick}><Icon name="shield" size={16} /><span>Check Warranty</span></button>
           </div>
         </div>
       </div>
@@ -317,7 +486,7 @@ function MyProducts() {
 }
 
 /* ─── Warranty & AMC ──────────────────────────────────── */
-function WarrantyAMC() {
+function WarrantyAMC({ onDevClick }) {
   const [warrantyAnimated, setWarrantyAnimated] = useState(false);
   const sectionRef = useRef(null);
 
@@ -357,7 +526,7 @@ function WarrantyAMC() {
             </div>
             <span className="progress-label">58% elapsed</span>
           </div>
-          <button className="btn-secondary full-width"><Icon name="upload" size={16} /><span>Raise Claim</span></button>
+          <button className="btn-secondary full-width" onClick={onDevClick}><Icon name="upload" size={16} /><span>Raise Claim</span></button>
         </div>
         <div className="warranty-card">
           <div className="warranty-card-header">
@@ -380,8 +549,8 @@ function WarrantyAMC() {
             <span className="progress-label">85% elapsed</span>
           </div>
           <div className="warranty-actions-row">
-            <button className="btn-secondary flex-1"><Icon name="upload" size={16} /><span>Raise Claim</span></button>
-            <button className="btn-primary flex-1"><span>Renew AMC</span></button>
+            <button className="btn-secondary flex-1" onClick={onDevClick}><Icon name="upload" size={16} /><span>Raise Claim</span></button>
+            <button className="btn-primary flex-1" onClick={onDevClick}><span>Renew AMC</span></button>
           </div>
         </div>
       </div>
@@ -390,7 +559,7 @@ function WarrantyAMC() {
 }
 
 /* ─── Raise Complaint ──────────────────────────────────── */
-function RaiseComplaint() {
+function RaiseComplaint({ showToast }) {
   const [form, setForm] = useState({ product: '', category: '', priority: 'Medium', description: '' });
   const [recording, setRecording] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -405,15 +574,39 @@ function RaiseComplaint() {
     if (!form.category) e.category = 'Required';
     if (!form.description) e.description = 'Required';
     setErrors(e);
+    if (Object.keys(e).length > 0) {
+      showToast?.('Please fill in all required complaint fields.', 'error');
+    }
     return Object.keys(e).length === 0;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validate()) return;
-    const id = `TKT-${10250 + Math.floor(Math.random() * 100)}`;
-    setTicketId(id);
-    setSubmitted(true);
+    (async () => {
+      const token = localStorage.getItem('supabase_token')
+      try {
+        const res = await fetch('http://localhost:8000/api/tickets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ product: form.product, category: form.category, priority: form.priority, description: form.description })
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setTicketId(data.id || '');
+          setSubmitted(true);
+          showToast?.('Complaint submitted successfully.', 'success');
+          return
+        }
+      } catch (err) {
+        console.error('ticket create error', err)
+      }
+      // fallback to local mock id
+      const id = `TKT-${10250 + Math.floor(Math.random() * 100)}`;
+      setTicketId(id);
+      setSubmitted(true);
+      showToast?.('Complaint submitted successfully.', 'success');
+    })();
   };
 
   const handleFileChange = (e) => {
@@ -658,32 +851,20 @@ function AIChat() {
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
-
-    // Mock AI responses for common queries
-    const mockResponses = {
-      'check warranty': "Your ThinkPad X1 Carbon (Serial: PF-4R2K7X) has an **active warranty** with **210 days remaining**. The warranty expires on January 12, 2027. Your coverage includes:\n\n• Hardware repair & replacement\n• On-site service (next business day)\n• Battery coverage\n\nWould you like to raise a warranty claim or check AMC status?",
-      'raise complaint': "I can help you raise a complaint! Here's what I need:\n\n1. **Product**: ThinkPad X1 Carbon Gen 11\n2. **Issue Category**: (Hardware, Software, Display, Battery, etc.)\n3. **Priority**: Low / Medium / High\n4. **Description**: Please describe your issue\n\nOr you can use the **Raise Complaint** form in the sidebar for a more detailed submission.",
-      'track ticket': "Here are your recent tickets:\n\n• **TKT-10247** - Keyboard backlight flickering — *Open*\n• **TKT-10243** - Vantage app crashes — *In Progress*\n• **TKT-10238** - Screen bleed issue — *Resolved*\n\nWould you like details on any specific ticket?",
-      'amc renewal': "Your Annual Maintenance Contract (AMC) is **expiring soon** with only **54 days remaining** (expires August 5, 2026).\n\n**Renewal Options:**\n• Basic AMC: $149/year — Parts & labor coverage\n• Premium AMC: $249/year — Includes accidental damage protection\n• Enterprise AMC: $399/year — 4-hour response time + dedicated technician\n\nWould you like to proceed with renewal?",
-    };
-
-    const lowerText = text.toLowerCase();
-    let response = null;
-    for (const [key, value] of Object.entries(mockResponses)) {
-      if (lowerText.includes(key)) {
-        response = value;
-        break;
-      }
+    try {
+      const token = localStorage.getItem('supabase_token')
+      const res = await fetch('http://localhost:8000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ message: text })
+      })
+      const data = await res.json()
+      setMessages(prev => [...prev, { role: 'assistant', content: data.reply || JSON.stringify(data) }])
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, chat service is unavailable.' }])
+    } finally {
+      setLoading(false)
     }
-
-    if (!response) {
-      response = `I understand you're asking about "${text}". Let me help you with that.\n\nFor your ThinkPad X1 Carbon, I can assist with:\n• **Warranty** inquiries and claims\n• **Technical issues** and troubleshooting\n• **AMC** management and renewal\n• **Ticket** tracking and updates\n\nCould you provide more details about what you need help with?`;
-    }
-
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
-    setMessages(prev => [...prev, { role: 'assistant', content: response }]);
-    setLoading(false);
   };
 
   const handleSubmit = (e) => {
@@ -767,7 +948,7 @@ function AIChat() {
 }
 
 /* ─── Feedback ──────────────────────────────────── */
-function Feedback() {
+function Feedback({ showToast }) {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState('');
@@ -826,17 +1007,18 @@ function Feedback() {
           <label className="form-label">Comments</label>
           <textarea className="form-input textarea" placeholder="Share your experience..." rows={4} value={comment} onChange={(e) => setComment(e.target.value)}></textarea>
         </div>
-        <button className="btn-primary full-width" onClick={() => setSubmitted(true)}>Submit Feedback</button>
+        <button className="btn-primary full-width" type="button" onClick={handleSubmit}>Submit Feedback</button>
       </div>
     </section>
   );
 }
 
 /* ─── Toast Notification ──────────────────────────────── */
-function Toast({ message, visible }) {
+function Toast({ message, visible, type = 'success' }) {
+  const iconName = type === 'error' ? 'alert-circle' : type === 'warning' ? 'alert-circle' : 'check-circle';
   return (
-    <div className={`toast ${visible ? 'show' : ''}`}>
-      <Icon name="check-circle" size={18} color="#10b981" />
+    <div className={`toast ${visible ? 'show' : ''} toast-${type}`}>
+      <Icon name={iconName} size={18} color={type === 'error' ? '#dc2626' : type === 'warning' ? '#f59e0b' : '#10b981'} />
       <span>{message}</span>
     </div>
   );
@@ -846,7 +1028,141 @@ function Toast({ message, visible }) {
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState('login');
+  const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [signupError, setSignupError] = useState('');
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const toastTimeoutRef = useRef(null);
   const mainRef = useRef(null);
+
+  const showToast = useCallback((message, type = 'success') => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    setToast({ visible: true, message, type });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast((prev) => ({ ...prev, visible: false }));
+      toastTimeoutRef.current = null;
+    }, 4200);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const devFeatureToast = useCallback(() => showToast('This feature is under development.', 'warning'), [showToast]);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      if (!supabase) return;
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session) {
+          localStorage.setItem('supabase_token', data.session.access_token);
+          setLoggedIn(true);
+        }
+      } catch (e) {
+        console.error('Session check error:', e);
+      }
+    };
+    checkSession();
+  }, []);
+
+  const handleLogin = async ({ email, password }) => {
+    if (!supabase) {
+      const msg = 'Supabase not configured. Check environment variables.';
+      setLoginError(msg);
+      showToast(msg, 'warning');
+      return false;
+    }
+    setLoading(true);
+    setLoginError('');
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        const msg = error.message === 'Invalid login credentials'
+          ? 'Invalid email or password'
+          : error.message || 'Login failed';
+        setLoginError(msg);
+        showToast(msg, 'error');
+        console.error('Login error', error);
+        return false;
+      }
+      const token = data?.session?.access_token;
+      if (token) {
+        localStorage.setItem('supabase_token', token);
+        setLoggedIn(true);
+        setLoginError('');
+        showToast('Successfully signed in', 'success');
+        return true;
+      }
+      const msg = 'No session token received';
+      setLoginError(msg);
+      showToast(msg, 'error');
+      return false;
+    } catch (e) {
+      const msg = 'An unexpected error occurred';
+      setLoginError(msg);
+      showToast(msg, 'error');
+      console.error('Login exception:', e);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async ({ email, password }) => {
+    if (!supabase) {
+      const msg = 'Supabase not configured. Check environment variables.';
+      setSignupError(msg);
+      showToast(msg, 'warning');
+      return false;
+    }
+    setLoading(true);
+    setSignupError('');
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        const msg = error.message || 'Signup failed';
+        setSignupError(msg);
+        showToast(msg, 'error');
+        console.error('Signup error', error);
+        return false;
+      }
+      if (data?.user) {
+        showToast('Account created successfully', 'success');
+        return true;
+      }
+      const msg = 'Signup succeeded but no account data was returned';
+      setSignupError(msg);
+      showToast(msg, 'warning');
+      return false;
+    } catch (e) {
+      const msg = 'An unexpected error occurred';
+      setSignupError(msg);
+      showToast(msg, 'error');
+      console.error('Signup exception:', e);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      if (supabase) await supabase.auth.signOut();
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+    localStorage.removeItem('supabase_token');
+    setLoggedIn(false);
+    setCurrentPage('login');
+  };
 
   const handleNavigate = useCallback((sectionId) => {
     setActiveSection(sectionId);
@@ -874,27 +1190,42 @@ function App() {
   }, [loggedIn]);
 
   if (!loggedIn) {
-    return <LoginPage onLogin={() => setLoggedIn(true)} />;
+    if (currentPage === 'login') {
+      return (
+        <>
+          <LoginPage onLogin={handleLogin} onSwitchToSignup={() => setCurrentPage('signup')} loading={loading} showToast={showToast} />
+          <Toast visible={toast.visible} message={toast.message} type={toast.type} />
+        </>
+      );
+    } else {
+      return (
+        <>
+          <SignupPage onSignup={handleSignup} onSwitchToLogin={() => { setCurrentPage('login'); setSignupError(''); }} loading={loading} showToast={showToast} />
+          <Toast visible={toast.visible} message={toast.message} type={toast.type} />
+        </>
+      );
+    }
   }
 
   return (
     <div className="app-layout">
       <Sidebar activeSection={activeSection} onNavigate={handleNavigate} />
       <div className="main-area">
-        <Header activeSection={activeSection} onLogout={() => setLoggedIn(false)} />
+        <Header activeSection={activeSection} onLogout={handleLogout} />
         <main className="content" ref={mainRef}>
           <DashboardHero />
-          <MyProducts />
-          <WarrantyAMC />
+          <MyProducts onDevClick={devFeatureToast} />
+          <WarrantyAMC onDevClick={devFeatureToast} />
           <RaiseComplaint />
           <MyTickets />
           <AIChat />
-          <Feedback />
+          <Feedback showToast={showToast} />
           <footer className="app-footer">
             <p>© 2026 Lenovo Support Portal. All rights reserved.</p>
           </footer>
         </main>
       </div>
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} />
     </div>
   );
 }
