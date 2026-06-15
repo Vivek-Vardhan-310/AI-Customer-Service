@@ -1,0 +1,10 @@
+{
+  "name": "mini-root",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frentend run dev",
+    "install:frentend": "npm --prefix frentend install",
+    "start": "npm run dev"
+  }
+}
