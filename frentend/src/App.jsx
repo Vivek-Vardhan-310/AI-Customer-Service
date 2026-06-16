@@ -1,70 +1,280 @@
 import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
 import { createClient } from '@supabase/supabase-js'
 import './App.css';
+import './animations.css';
+import { useInView, useRafCount } from './hooks/animations';
 
-/* ─── Mock Data ──────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   MOCK DATA
+   ═══════════════════════════════════════════════════════════ */
+
+const MOCK_PRODUCTS = [
+  { id: 'p1', name: 'ThinkPad X1 Carbon', serial: 'PF31ABK2', model: 'TP-2023-X1', image: 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400', warranty: 'Active', warrantyDays: 210, warrantyTotal: 365, amc: 'Active', amcDays: 54, amcTotal: 365, status: 'Active', purchaseDate: 'Nov 15, 2025' },
+  { id: 'p2', name: 'IdeaPad Slim 5', serial: 'MP5L8MH2', model: 'IP-2024-S5', image: 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400', warranty: 'Expiring Soon', warrantyDays: 28, warrantyTotal: 365, amc: 'Inactive', amcDays: 0, amcTotal: 365, status: 'Expiring Soon', purchaseDate: 'Mar 10, 2025' },
+  { id: 'p3', name: 'Legion 5 Pro', serial: 'SL80PX120', model: 'LG-2024-5P', image: 'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400', warranty: 'Active', warrantyDays: 340, warrantyTotal: 730, amc: 'Active', amcDays: 340, amcTotal: 365, status: 'Active', purchaseDate: 'Jan 5, 2026' },
+];
+
 const MOCK_TICKETS = [
-  { id: 'TKT-10247', product: 'ThinkPad X1 Carbon', category: 'Hardware', status: 'Open', priority: 'High', date: '2026-06-10', description: 'Keyboard backlight flickering intermittently during use. Issue started after the latest BIOS update.', timeline: ['Open'] },
-  { id: 'TKT-10243', product: 'ThinkPad X1 Carbon', category: 'Software', status: 'In Progress', priority: 'Medium', date: '2026-06-08', description: 'Lenovo Vantage app crashes on startup. Tried reinstalling but issue persists.', timeline: ['Open', 'Assigned', 'In Progress'] },
-  { id: 'TKT-10238', product: 'ThinkPad X1 Carbon', category: 'Display', status: 'Resolved', priority: 'Low', date: '2026-06-03', description: 'Minor screen bleed on lower-left corner. Noticeable only on dark backgrounds.', timeline: ['Open', 'Assigned', 'In Progress', 'Resolved'] },
-  { id: 'TKT-10231', product: 'ThinkPad X1 Carbon', category: 'Battery', status: 'Closed', priority: 'High', date: '2026-05-28', description: 'Battery draining faster than expected. Only getting 4 hours on a full charge.', timeline: ['Open', 'Assigned', 'In Progress', 'Resolved', 'Closed'] },
-  { id: 'TKT-10225', product: 'ThinkPad X1 Carbon', category: 'Network', status: 'Escalated', priority: 'High', date: '2026-05-22', description: 'Wi-Fi 6E adapter dropping connection every 15-20 minutes. Driver reinstall did not fix.', timeline: ['Open', 'Assigned', 'Escalated'] },
-  { id: 'TKT-10220', product: 'ThinkPad X1 Carbon', category: 'Hardware', status: 'Open', priority: 'Medium', date: '2026-06-11', description: 'TrackPoint cap feels loose and drifts slightly to the right when not touched.', timeline: ['Open'] },
+  { id: 'CS-8992', product: 'ThinkPad X1 Carbon', title: 'ThinkPad Keyboard Backlight Issue', category: 'Keyboard', status: 'In Progress', priority: 'Medium', created: '13 Jun 2026', updated: '14 Jun 2026', description: 'Keyboard backlight stopped working after the latest software update.', timeline: [
+    { step: 'Complaint Raised', date: '12 Jun 2026 · 10:00 AM', done: true },
+    { step: 'Assigned to Engineer', date: '12 Jun 2026 · 11:15 AM', done: true },
+    { step: 'Diagnosis Started', date: '13 Jun 2026 · 09:40 AM', done: true },
+    { step: 'In Progress', date: '14 Jun 2026 · 02:20 PM', done: true },
+    { step: 'Resolved', date: '', done: false },
+    { step: 'Closed', date: '', done: false },
+  ], updates: [
+    { date: '14 Jun 2026 · 12:03 PM', text: 'Our engineer is currently working on this issue. Driver conflict identified. Fix in progress.', author: 'Rajesh K., Support Engineer' },
+    { date: '13 Jun 2026 · 09:40 AM', text: 'Issue has been assigned to our technical team for diagnosis.', author: 'System' },
+    { date: '12 Jun 2026 · 11:15 AM', text: 'Ticket has been assigned to Rajesh K.', author: 'System' },
+  ]},
+  { id: 'CS-9011', product: 'Legion 5 Pro', title: 'System Overheating During Games', category: 'Hardware', status: 'Open', priority: 'High', created: '14 Jun 2026', updated: '14 Jun 2026', description: 'System heats up excessively during gaming sessions, causing throttling.', timeline: [
+    { step: 'Complaint Raised', date: '14 Jun 2026 · 08:30 AM', done: true },
+    { step: 'Assigned to Engineer', date: '', done: false },
+    { step: 'Diagnosis Started', date: '', done: false },
+    { step: 'In Progress', date: '', done: false },
+    { step: 'Resolved', date: '', done: false },
+    { step: 'Closed', date: '', done: false },
+  ], updates: [] },
+  { id: 'CS-8721', product: 'ThinkPad X1 Carbon', title: 'Battery Not Charging After Update', category: 'Battery', status: 'Resolved', priority: 'Medium', created: '01 Jun 2026', updated: '10 Jun 2026', description: 'Battery stopped charging after latest BIOS update. Adapter works fine with other devices.', timeline: [
+    { step: 'Complaint Raised', date: '01 Jun 2026', done: true },
+    { step: 'Assigned to Engineer', date: '01 Jun 2026', done: true },
+    { step: 'Diagnosis Started', date: '02 Jun 2026', done: true },
+    { step: 'In Progress', date: '03 Jun 2026', done: true },
+    { step: 'Resolved', date: '10 Jun 2026', done: true },
+    { step: 'Closed', date: '', done: false },
+  ], updates: [] },
+  { id: 'CS-7960', product: 'IdeaPad Slim 5', title: 'WiFi Connectivity Issues', category: 'Network', status: 'Closed', priority: 'Low', created: '30 May 2026', updated: '05 Jun 2026', description: 'WiFi keeps disconnecting intermittently.', timeline: [
+    { step: 'Complaint Raised', date: '30 May 2026', done: true },
+    { step: 'Assigned to Engineer', date: '30 May 2026', done: true },
+    { step: 'Diagnosis Started', date: '31 May 2026', done: true },
+    { step: 'In Progress', date: '01 Jun 2026', done: true },
+    { step: 'Resolved', date: '04 Jun 2026', done: true },
+    { step: 'Closed', date: '05 Jun 2026', done: true },
+  ], updates: [] },
 ];
 
-const TIMELINE_STEPS = ['Open', 'Assigned', 'In Progress', 'Resolved', 'Closed'];
-
-const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
-  { id: 'products', label: 'My Products', icon: 'box' },
-  { id: 'warranty', label: 'Warranty & AMC', icon: 'shield' },
-  { id: 'complaint', label: 'Raise Complaint', icon: 'alert-circle' },
-  { id: 'tickets', label: 'My Tickets', icon: 'ticket' },
-  { id: 'chat', label: 'AI Support', icon: 'message-circle' },
-  { id: 'feedback', label: 'Feedback', icon: 'star' },
+const FAQ_CATEGORIES = [
+  { slug: 'hardware', name: 'Hardware Problems', icon: 'monitor' },
+  { slug: 'battery', name: 'Battery & Power', icon: 'battery' },
+  { slug: 'software', name: 'Software & OS', icon: 'code' },
+  { slug: 'network', name: 'Network & Connectivity', icon: 'wifi' },
+  { slug: 'warranty', name: 'Warranty & Services', icon: 'shield' },
+  { slug: 'drivers', name: 'Drivers & Downloads', icon: 'download' },
+  { slug: 'connectivity', name: 'Connectivity (Wi-Fi, BT)', icon: 'bluetooth' },
+  { slug: 'accessories', name: 'Accessories & Peripherals', icon: 'headphones' },
 ];
 
-const ISSUE_CATEGORIES = ['Hardware', 'Software', 'Display', 'Battery', 'Network', 'Audio', 'Keyboard', 'Other'];
+const FAQ_ARTICLES = {
+  battery: [
+    {
+      id: 'faq1',
+      q: 'Why is my battery draining faster than expected?',
+      a: `Modern laptops can show faster drain for many reasons. Follow these steps to diagnose and improve battery life:\n\n• Check power profile: Set Windows to Balanced or Power Saver (Settings → System → Power & battery).\n• Identify heavy apps: Open Task Manager → Processes and sort by "Power usage". Close or uninstall apps that consume excessive resources.\n• Screen brightness: Reduce brightness or enable adaptive brightness.\n• Background sync & peripherals: Disable background sync, disconnect unused USB devices, and turn off Bluetooth when not required.\n• Drivers & BIOS: Update display, chipset, and power management drivers from the official support site; update BIOS if available.\n• Battery health: Use manufacturer tools (Lenovo Vantage, ASUS MyASUS) to view charge cycles and health. Consider battery replacement if health is low.\n\nIf the steps above don't help, collect battery reports (powercfg /batteryreport) and share with support when raising a ticket.`
+    },
+    {
+      id: 'faq2',
+      q: 'My laptop does not charge — what should I check?',
+      a: `Quick checklist to determine why charging fails:\n\n• Power source: Try a different wall socket and remove any power strips.\n• Adapter & cable: Inspect for frayed cables or bent pins; test with a known-good compatible adapter.\n• Charging port: Check for debris in the DC jack; gently clean and reseat the plug.\n• Battery indicator: Does the LED blink or remain off? Note the pattern — useful for diagnostics.\n• Battery status in OS: Check Windows Settings → System → Power & battery or use powercfg /batteryreport to view state.\n• BIOS/firmware: Boot into BIOS and check battery/adapter status; update BIOS if vendor recommends.\n• Diagnostics: Run the vendor hardware diagnostics (Lenovo Diagnostics/UEFI tools).\n\nIf hardware checks fail, avoid repeated attempts to charge — raise a service request with serial number, photos of the adapter/port, and the battery report.`
+    },
+    {
+      id: 'faq3',
+      q: 'How can I improve long-term battery life and longevity?',
+      a: `Best practices to keep your battery healthy over time:\n\n• Avoid constant 100% charging: For daily use, keep the battery between ~20%–80% where possible.\n• Use recommended chargers: Always use the manufacturer-specified adapter.\n• Keep firmware updated: BIOS and power driver updates often include battery-management improvements.\n• Avoid extreme temperatures: Do not operate or store the laptop in very hot (>35°C) or very cold (<0°C) conditions.\n• Storage: If storing long-term, charge to ~50% and power off.\n• Calibration: Occasionally perform a full charge-discharge cycle to help the battery gauge remain accurate.\n\nFor enterprise or heavy users, consider vendor power-management utilities that allow charging thresholds and preservation modes.`
+    },
+  ],
 
-/* ─── SVG Icon Component ──────────────────────────────────── */
-function Icon({ name, size = 20, color = 'currentColor' }) {
-  const icons = {
-    'grid': <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
-    'box': <><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></>,
-    'shield': <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>,
-    'alert-circle': <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>,
-    'ticket': <><path d="M2 9a3 3 0 013-3h14a3 3 0 013 3"/><path d="M2 9v6a3 3 0 003 3h14a3 3 0 003-3V9"/><path d="M13 6V4a2 2 0 10-4 0v2"/><line x1="8" y1="11" x2="8" y2="13"/><line x1="16" y1="11" x2="16" y2="13"/></>,
-    'message-circle': <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>,
-    'star': <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>,
-    'bell': <><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>,
-    'chevron-down': <polyline points="6 9 12 15 18 9"/>,
-    'search': <><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
-    'send': <><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>,
+  hardware: [
+    {
+      id: 'faq6',
+      q: 'Keyboard or certain keys are not responding — what should I do?',
+      a: `Step-by-step troubleshooting for keyboard issues:\n\n• Reboot & test: Restart the laptop and test the keyboard in BIOS (if supported) or an external USB keyboard.\n• Check for Fn lock / hotkeys: Ensure Fn Lock isn't enabled; toggle Fn combinations to restore normal behavior.\n• Drivers: Open Device Manager → Keyboards → Update driver. Uninstall and reboot to reinstall if needed.\n• Software conflicts: Boot into Safe Mode; if keyboard works there, a third-party app may be blocking input.\n• Physical damage: Look for liquid spills, crumbs, or stuck keys. Clean carefully or seek service.\n• External keyboard: If an external keyboard works, the issue is likely hardware-related.\n\nIf hardware replacement is required, note your serial number and warranty status before contacting support.`
+    },
+    {
+      id: 'faq7',
+      q: 'My screen is flickering or shows artifacts — how can I fix it?',
+      a: `Follow these diagnostics to isolate display flicker/artifact problems:\n\n• Isolate app vs system: Does flicker happen only with one app? Update or reinstall that app.\n• Refresh rate & resolution: Right-click Desktop → Display settings → Advanced display → set the recommended resolution and refresh rate.\n• GPU drivers: Update graphics drivers from the vendor (Intel/AMD/NVIDIA) or your laptop support page.\n• Hardware acceleration: Disable hardware acceleration in browsers or specific apps to test.\n• External monitor test: Connect an external display — if external is fine, issue may be laptop panel or cable.\n• BIOS & firmware: Update BIOS and embedded controller (EC) firmware.\n\nIf the screen has persistent artifacts across BIOS and external displays also fail, it may indicate GPU or cable failure — open a support ticket with reproduction steps and sample photos/video.`
+    },
+    {
+      id: 'faq8',
+      q: 'Touchpad stopped working — what can I try?',
+      a: `Touchpad troubleshooting checklist:\n\n• Toggle touchpad on/off: Look for a touchpad toggle (Fn + function key) or Settings → Bluetooth & devices → Touchpad.\n• Driver updates: Update touchpad drivers (Synaptics/ELAN) from Device Manager or vendor site.\n• External mouse conflict: Unplug external mouse and test.\n• BIOS check: Ensure touchpad is enabled in BIOS settings.\n• Sensitivity settings: Reset touchpad sensitivity to default.\n• Hardware issue: If buttons or gestures fail but physical clicking works, the touch sensor may be faulty.\n\nIf none of the above work, collect system logs and contact support for hardware service.`
+    },
+  ],
+
+  software: [
+    {
+      id: 'faq9',
+      q: 'My system is slow — how do I diagnose performance issues?',
+          a: `A systematic approach to improving system performance:\n\n• Task Manager analysis: Press Ctrl+Shift+Esc → Processes/Performance to find CPU, memory, disk, or GPU bottlenecks.\n• Background apps & startup: Disable unnecessary startup apps (Task Manager → Startup).\n• Disk health & space: Run chkdsk /f and free up disk space. Consider moving large files to external storage or cloud.\n• RAM & storage: Low RAM or a slow HDD can slow systems — consider adding RAM or upgrading to an SSD.\n• Malware scan: Run a full scan with Windows Defender or another reputable anti-malware tool.\n• Software updates: Keep OS and drivers current; sometimes old drivers cause regressions.\n• Reset browser: If browsing is slow, clear cache or reset the browser.\n\nIf performance is inconsistent, create a timeline of when slowness occurs and which apps are active, then escalate to support with logs.`
+    },
+    {
+      id: 'faq10',
+      q: 'I see a Blue Screen (BSOD) — what information should I collect?',
+          a: `Blue Screens can be caused by hardware or drivers. Gather these details before contacting support:\n\n• Error code & message: Copy the STOP code (e.g., IRQL_NOT_LESS_OR_EQUAL) and any driver file mentioned.\n• Minidump files: Enable Minidump in System Properties → Advanced → Startup and Recovery and attach the files from C:\Windows\Minidump.\n• Recent changes: Note any recent driver installations, Windows updates, or hardware changes.\n• Reproduce steps: If the BSOD occurs during a specific action, document the steps to reproduce.\n\nBasic troubleshooting: update drivers, run memory diagnostics (mdsched.exe), and check disk health. If unstable, collect logs and open a support ticket.`
+    },
+  ],
+
+  network: [
+    {
+      id: 'faq11',
+      q: 'Wi‑Fi keeps disconnecting — how can I stabilize the connection?',
+          a: `Troubleshoot intermittent Wi‑Fi disconnects with these steps:\n\n• Router & ISP: Restart your router and modem; verify if other devices have the same issue.\n• Signal & placement: Move closer to the router, avoid obstructions and sources of interference (microwaves, cordless phones).\n• Band selection: Try switching between 2.4GHz and 5GHz networks; 5GHz is faster but has shorter range.\n• Power settings: In Device Manager → Network adapters → Properties → Power Management, uncheck "Allow the computer to turn off this device".\n• Drivers & firmware: Update Wi‑Fi adapter drivers and router firmware.\n• IP & DNS: Run ipconfig /release && ipconfig /renew && ipconfig /flushdns to reset network stack.\n• Advanced: Set a static channel on the router to avoid automatic channel switching that causes brief drops.\n\nIf connectivity issues persist, capture wireless logs and open a support ticket with SSID, adapter model, and approximate time(s) of disconnects.`
+    },
+    {
+      id: 'faq12',
+      q: 'Bluetooth paired but device won\'t connect or dropouts occur',
+      a: `Bluetooth troubleshooting steps:\n\n• Remove & re-pair: Remove the device from Bluetooth settings and pair again.\n• Close interfering apps: Some apps may hold audio devices; close any app using audio.\n• Drivers: Update Bluetooth and audio drivers.\n• Power management: Disable Bluetooth power saving in Device Manager.\n• Firmware: Update headphones/headset firmware (if applicable).\n\nFor persistent issues, test the Bluetooth device with another phone/computer to rule out the accessory.`
+    },
+  ],
+
+  warranty: [
+    {
+      id: 'faq20',
+      q: 'How do I check my warranty status?',
+      a: `To check warranty status:\n\n• Registered account: Sign in to your manufacturer account (e.g., Lenovo ID) and view registered devices.\n• Serial lookup: Use the service portal and enter your device serial number or SNID.\n• Purchase proof: Keep invoices or order numbers ready — these accelerate claims.\n\nIf your device is not registered, register it with the serial number to get faster service and AMC reminders.`
+    },
+    {
+      id: 'faq21',
+      q: 'What does warranty cover vs AMC (Annual Maintenance Contract)?',
+      a: `Typical coverage differences (may vary by vendor):\n\n• Manufacturer warranty: Covers manufacturing defects and hardware failures under normal use for the warranty period. Does not cover accidental damage or unauthorized modifications.\n• AMC / Extended warranty: Paid plans that extend coverage, may include on-site service, and sometimes accidental damage protection (check plan details).\n\nAlways read the plan terms — what is excluded and the response time SLA.`
+    },
+    {
+      id: 'faq22',
+      q: 'How do I raise a warranty claim?',
+      a: `Raising a warranty claim — recommended steps:\n\n• Collect info: Device serial number, proof of purchase, description of the issue, photos/videos, and any error messages.\n• Contact support: Use the support portal or phone number on the website to create a ticket.\n• Diagnostics: Follow remote troubleshooting steps provided by support; be ready to run logs or diagnostic tools.\n• Service appointment: If hardware service is required, schedule an on-site visit or drop-off as instructed.\n\nKeep your ticket ID and follow up if updated timelines are needed.`
+    },
+  ],
+
+  drivers: [
+    {
+      id: 'faq30',
+      q: 'Where can I safely download drivers for my laptop?',
+      a: `Best practices for driver downloads:\n\n• Official support site: Always use the laptop manufacturer's support page and enter your serial/model to get tested drivers.\n• Vendor GPU drivers: For GPUs, use Intel/AMD/NVIDIA official drivers if recommended by the vendor page.\n• Avoid third-party driver sites: Untrusted sources may contain incorrect or malicious drivers.\n\nIf you are unsure which driver to install, prefer vendor-provided utility programs (Lenovo Vantage) that recommend and apply the correct driver set.`
+    },
+    {
+      id: 'faq31',
+      q: 'I updated a driver and now the system is unstable — how do I revert?',
+      a: `How to roll back a problematic driver:\n\n• Device Manager rollback: Right-click the device → Properties → Driver → Roll Back Driver (if available).\n• Uninstall & reinstall: Use Device Manager to uninstall the device (check "Delete driver software"), then reboot and let Windows reinstall a stable driver.\n• System restore: If you have a System Restore point, revert to a previous state.\n• Safe Mode: Boot to Safe Mode to perform removals if normal mode is unstable.\n\nIf stability issues persist, capture event logs and contact support for a guided rollback.`
+    },
+  ],
+
+  accessories: [
+    {
+      id: 'faq40',
+      q: 'My charger or adapter is not powering the laptop reliably — what should I check?',
+      a: `Charger troubleshooting checklist:\n\n• Check rating: Ensure the replacement adapter matches required voltage and wattage. Undersized adapters may not charge under load.\n• Cable & connector: Inspect for damage and test with another compatible adapter.\n• Intermittent charging: Wiggle the connector gently — if charging cuts in/out, port repair may be required.\n• Battery vs adapter: Remove battery (if removable) and test adapter-only boot (where supported) to isolate the issue.\n\nIf the adapter is faulty or pins are damaged, replace with an official or certified adapter.`
+    },
+    {
+      id: 'faq41',
+      q: 'External monitor not detected — how can I fix this?',
+      a: `Steps to diagnose external display issues:\n\n• Cable & port: Try a different cable and port (HDMI/DP/USB-C). Test the monitor with another device to rule out the monitor.\n• Input source: Ensure the external monitor input is set to the correct source.\n• Display settings: Windows → Display settings → Detect; set "Multiple displays" to Extend or Duplicate as needed.\n• GPU drivers: Update graphics drivers and check display adapter settings.\n• Adapter dongles: If using a passive adapter, test with an active adapter if the laptop requires DisplayPort alt-mode.\n\nIf multiple monitors fail across ports, collect logs and contact support — include GPU model and adapter type.`
+    },
+  ],
+};
+
+const ISSUE_CATEGORIES = [
+  { id: 'battery', label: 'Battery', icon: 'battery' },
+  { id: 'screen', label: 'Screen', icon: 'monitor' },
+  { id: 'keyboard', label: 'Keyboard', icon: 'keyboard' },
+  { id: 'motherboard', label: 'Motherboard', icon: 'cpu' },
+  { id: 'software', label: 'Software', icon: 'code' },
+  { id: 'other', label: 'Other', icon: 'help-circle' },
+];
+
+/* ═══════════════════════════════════════════════════════════
+   SVG ICON COMPONENT
+   ═══════════════════════════════════════════════════════════ */
+
+function Icon({ name, size = 20, color = 'currentColor', fill = 'none' }) {
+  const paths = {
+    'home': <><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
+    'laptop': <><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="2" y1="20" x2="22" y2="20"/></>,
+    'monitor': <><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></>,
+    'ticket': <><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></>,
+    'help-circle': <><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></>,
+    'headphones': <><path d="M3 18v-6a9 9 0 0118 0v6"/><path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z"/></>,
     'mic': <><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></>,
-    'paperclip': <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>,
+    'message-circle': <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>,
+    'search': <><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
+    'bell': <><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>,
+    'menu': <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>,
+    'x': <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
+    'arrow-left': <><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></>,
+    'chevron-right': <polyline points="9 18 15 12 9 6"/>,
+    'chevron-down': <polyline points="6 9 12 15 18 9"/>,
     'check': <polyline points="20 6 9 17 4 12"/>,
     'check-circle': <><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>,
-    'x': <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
-    'log-out': <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
+    'shield': <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>,
+    'send': <><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>,
+    'phone': <><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></>,
+    'star': <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>,
     'user': <><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
-    'settings': <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></>,
-    'trending-up': <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></>,
-    'trending-down': <><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></>,
-    'clock': <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
-    'award': <><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></>,
-    'activity': <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>,
+    'settings': <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></>,
+    'log-out': <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
     'eye': <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>,
     'upload': <><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>,
+    'download': <><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>,
+    'battery': <><rect x="1" y="6" width="18" height="12" rx="2" ry="2"/><line x1="23" y1="13" x2="23" y2="11"/></>,
+    'wifi': <><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></>,
+    'bluetooth': <><polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"/></>,
+    'cpu': <><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></>,
+    'code': <><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></>,
+    'keyboard': <><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M7 16h10"/></>,
+    'paperclip': <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>,
+    'image': <><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>,
+    'globe': <><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>,
+    'info': <><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></>,
+    'file-text': <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></>,
+    'lock': <><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></>,
+    'zap': <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>,
+    'alert-triangle': <><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>,
+    'thumbs-up': <><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></>,
+    'thumbs-down': <><path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3zm7-13h2.67A2.31 2.31 0 0122 4v7a2.31 2.31 0 01-2.33 2H17"/></>,
+    'mail': <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>,
+    'plus': <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
+    'more-vertical': <><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></>,
+    'clock': <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+    'activity': <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>,
   };
 
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      {icons[name] || null}
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {paths[name] || null}
     </svg>
   );
 }
 
-/* ─── Login Page ──────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   SUPABASE
+   ═══════════════════════════════════════════════════════════ */
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+let supabase = null;
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey);
+} else {
+  console.warn('Supabase not configured — running in demo mode.');
+}
+export { supabase };
+
+/* ═══════════════════════════════════════════════════════════
+   TOAST
+   ═══════════════════════════════════════════════════════════ */
+
+function Toast({ message, visible, type = 'success' }) {
+  return (
+    <div className={`toast ${visible ? 'show' : ''} toast-${type}`}>
+      <Icon name={type === 'error' ? 'alert-triangle' : type === 'warning' ? 'alert-triangle' : 'check-circle'} size={18} color={type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#22c55e'} />
+      <span>{message}</span>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LOGIN PAGE
+   ═══════════════════════════════════════════════════════════ */
+
 function LoginPage({ onLogin, onSwitchToSignup, loading, showToast }) {
   const [tab, setTab] = useState('customer');
   const [email, setEmail] = useState('');
@@ -75,40 +285,27 @@ function LoginPage({ onLogin, onSwitchToSignup, loading, showToast }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      const msg = 'Please fill in all fields';
-      setError(msg);
-      showToast?.(msg, 'error');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      const msg = 'Please enter a valid email address';
-      setError(msg);
-      showToast?.(msg, 'error');
-      return;
-    }
+    if (!email || !password) { const msg = 'Please fill in all fields'; setError(msg); showToast?.(msg, 'error'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { const msg = 'Please enter a valid email'; setError(msg); showToast?.(msg, 'error'); return; }
     await onLogin({ email, role: tab, password });
   };
 
   return (
     <div className="login-page">
       <div className="login-left">
-        <img src="https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=1200" alt="Professional workspace" className="login-bg-image" />
+        <img src="https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=1200" alt="Workspace" className="login-bg-image" />
         <div className="login-overlay">
           <div className="login-brand">
             <div className="login-logo">
-              <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                <rect width="40" height="40" rx="10" fill="#2563EB"/>
-                <path d="M12 28V12h4v12h8v4H12z" fill="white"/>
-              </svg>
+              <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#F9C54D"/><path d="M12 28V12h4v12h8v4H12z" fill="#131414"/></svg>
             </div>
-            <h1 className="login-title">Lenovo Support<span className="accent-dot">.</span></h1>
-            <p className="login-subtitle">Enterprise Customer Support Portal</p>
-            <p className="login-description">Get instant help with your ThinkPad products. Track warranties, raise complaints, and connect with AI-powered support — all in one place.</p>
+            <h1 className="login-title">LaptopCare<span className="accent-dot">.</span></h1>
+            <p className="login-subtitle">Customer Support Portal</p>
+            <p className="login-description">Get instant help with your laptop products. Track warranties, raise complaints, and connect with AI-powered support — all in one place.</p>
             <div className="login-features">
-              <div className="login-feature"><Icon name="check-circle" size={16} color="#2563EB" /><span>24/7 AI Support</span></div>
-              <div className="login-feature"><Icon name="check-circle" size={16} color="#2563EB" /><span>Real-time Ticket Tracking</span></div>
-              <div className="login-feature"><Icon name="check-circle" size={16} color="#2563EB" /><span>Warranty Management</span></div>
+              <div className="login-feature"><Icon name="check-circle" size={16} color="#F9C54D" /><span>24/7 AI Support</span></div>
+              <div className="login-feature"><Icon name="check-circle" size={16} color="#F9C54D" /><span>Real-time Ticket Tracking</span></div>
+              <div className="login-feature"><Icon name="check-circle" size={16} color="#F9C54D" /><span>Warranty Management</span></div>
             </div>
           </div>
         </div>
@@ -118,8 +315,8 @@ function LoginPage({ onLogin, onSwitchToSignup, loading, showToast }) {
           <h2 className="login-card-title">Welcome back</h2>
           <p className="login-card-subtitle">Sign in to your support account</p>
           <div className="login-tabs">
-            <button className={`login-tab ${tab === 'customer' ? 'active' : ''}`} onClick={() => setTab('customer')} disabled={loading}>Customer Login</button>
-            <button className={`login-tab ${tab === 'admin' ? 'active' : ''}`} onClick={() => setTab('admin')} disabled={loading}>Admin Login</button>
+            <button className={`login-tab ${tab === 'customer' ? 'active' : ''}`} onClick={() => setTab('customer')} disabled={loading}>Customer</button>
+            <button className={`login-tab ${tab === 'admin' ? 'active' : ''}`} onClick={() => setTab('admin')} disabled={loading}>Admin</button>
           </div>
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-group">
@@ -129,24 +326,16 @@ function LoginPage({ onLogin, onSwitchToSignup, loading, showToast }) {
             <div className="form-group">
               <label className="form-label">Password</label>
               <div className="password-input-wrapper">
-                <input type={showPassword ? "text" : "password"} className="form-input" placeholder="••••••••" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} disabled={loading} />
-                <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)} disabled={loading}>
-                  <Icon name={showPassword ? "eye" : "eye"} size={16} color="#94a3b8" />
-                </button>
+                <input type={showPassword ? 'text' : 'password'} className="form-input" placeholder="••••••••" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} disabled={loading} />
+                <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)}><Icon name="eye" size={16} color="#8a8a8a" /></button>
               </div>
             </div>
             <div className="form-row">
-              <label className="checkbox-label">
-                <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} disabled={loading} />
-                <span className="checkbox-custom"></span>
-                <span>Remember me</span>
-              </label>
+              <label className="checkbox-label"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /><span className="checkbox-custom"></span><span>Remember me</span></label>
               <a href="#" className="forgot-link" onClick={(e) => e.preventDefault()}>Forgot password?</a>
             </div>
             {error && <div className="form-error">{error}</div>}
-            <button type="submit" className="btn-primary login-btn" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
+            <button type="submit" className="btn-primary login-btn full-width" disabled={loading}>{loading ? 'Signing in...' : 'Sign In'}</button>
           </form>
           <p className="login-footer-text">New here? <a href="#" className="create-account-link" onClick={(e) => { e.preventDefault(); onSwitchToSignup(); }}>Create account</a></p>
         </div>
@@ -155,79 +344,39 @@ function LoginPage({ onLogin, onSwitchToSignup, loading, showToast }) {
   );
 }
 
-/* ─── Signup Page ──────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   SIGNUP PAGE
+   ═══════════════════════════════════════════════════════════ */
+
 function SignupPage({ onSignup, onSwitchToLogin, loading, showToast }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const validatePassword = (pwd) => {
-    return pwd.length >= 8;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password || !confirmPassword) {
-      const msg = 'Please fill in all fields';
-      setError(msg);
-      showToast?.(msg, 'error');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      const msg = 'Please enter a valid email address';
-      setError(msg);
-      showToast?.(msg, 'error');
-      return;
-    }
-    if (!validatePassword(password)) {
-      const msg = 'Password must be at least 8 characters';
-      setError(msg);
-      showToast?.(msg, 'error');
-      return;
-    }
-    if (password !== confirmPassword) {
-      const msg = 'Passwords do not match';
-      setError(msg);
-      showToast?.(msg, 'error');
-      return;
-    }
-    const created = await onSignup({ email, password });
-    if (created) {
-      setSuccess(true);
-    }
+    if (!email || !password || !confirmPassword) { showToast?.('Please fill all fields', 'error'); return; }
+    if (password.length < 8) { showToast?.('Password must be 8+ characters', 'error'); return; }
+    if (password !== confirmPassword) { showToast?.('Passwords do not match', 'error'); return; }
+    const ok = await onSignup({ email, password });
+    if (ok) setSuccess(true);
   };
 
   if (success) {
     return (
       <div className="login-page">
         <div className="login-left">
-          <img src="https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=1200" alt="Professional workspace" className="login-bg-image" />
-          <div className="login-overlay">
-            <div className="login-brand">
-              <div className="login-logo">
-                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                  <rect width="40" height="40" rx="10" fill="#2563EB"/>
-                  <path d="M12 28V12h4v12h8v4H12z" fill="white"/>
-                </svg>
-              </div>
-              <h1 className="login-title">Lenovo Support<span className="accent-dot">.</span></h1>
-            </div>
-          </div>
+          <img src="https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=1200" alt="Workspace" className="login-bg-image" />
+          <div className="login-overlay"><div className="login-brand"><h1 className="login-title">LaptopCare<span className="accent-dot">.</span></h1></div></div>
         </div>
         <div className="login-right">
-          <div className="login-card">
-            <div className="success-icon-wrap" style={{marginBottom: '16px'}}>
-              <Icon name="check-circle" size={48} color="#10b981" />
-            </div>
+          <div className="login-card" style={{textAlign:'center'}}>
+            <div className="success-icon-wrap"><Icon name="check-circle" size={48} color="#22c55e" /></div>
             <h2 className="login-card-title">Account Created!</h2>
-            <p className="login-card-subtitle">Your account has been successfully created. You can now sign in.</p>
-            <button className="btn-primary login-btn" onClick={onSwitchToLogin} style={{marginTop: '24px'}}>
-              Return to Sign In
-            </button>
+            <p className="login-card-subtitle">You can now sign in.</p>
+            <button className="btn-primary full-width" onClick={onSwitchToLogin} style={{marginTop:24}}>Return to Sign In</button>
           </div>
         </div>
       </div>
@@ -237,57 +386,25 @@ function SignupPage({ onSignup, onSwitchToLogin, loading, showToast }) {
   return (
     <div className="login-page">
       <div className="login-left">
-        <img src="https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=1200" alt="Professional workspace" className="login-bg-image" />
+        <img src="https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=1200" alt="Workspace" className="login-bg-image" />
         <div className="login-overlay">
           <div className="login-brand">
-            <div className="login-logo">
-              <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                <rect width="40" height="40" rx="10" fill="#2563EB"/>
-                <path d="M12 28V12h4v12h8v4H12z" fill="white"/>
-              </svg>
-            </div>
-            <h1 className="login-title">Lenovo Support<span className="accent-dot">.</span></h1>
-            <p className="login-subtitle">Enterprise Customer Support Portal</p>
-            <p className="login-description">Get instant help with your ThinkPad products. Track warranties, raise complaints, and connect with AI-powered support — all in one place.</p>
-            <div className="login-features">
-              <div className="login-feature"><Icon name="check-circle" size={16} color="#2563EB" /><span>24/7 AI Support</span></div>
-              <div className="login-feature"><Icon name="check-circle" size={16} color="#2563EB" /><span>Real-time Ticket Tracking</span></div>
-              <div className="login-feature"><Icon name="check-circle" size={16} color="#2563EB" /><span>Warranty Management</span></div>
-            </div>
+            <div className="login-logo"><svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#F9C54D"/><path d="M12 28V12h4v12h8v4H12z" fill="#131414"/></svg></div>
+            <h1 className="login-title">LaptopCare<span className="accent-dot">.</span></h1>
+            <p className="login-subtitle">Customer Support Portal</p>
           </div>
         </div>
       </div>
       <div className="login-right">
         <div className="login-card">
           <h2 className="login-card-title">Create Account</h2>
-          <p className="login-card-subtitle">Join Lenovo Support Portal</p>
+          <p className="login-card-subtitle">Join LaptopCare Support</p>
           <form onSubmit={handleSubmit} className="login-form">
-            <div className="form-group">
-              <label className="form-label">Email address</label>
-              <input type="email" className="form-input" placeholder="name@company.com" value={email} onChange={(e) => { setEmail(e.target.value); setError(''); }} disabled={loading} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <div className="password-input-wrapper">
-                <input type={showPassword ? "text" : "password"} className="form-input" placeholder="At least 8 characters" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} disabled={loading} />
-                <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)} disabled={loading}>
-                  <Icon name="eye" size={16} color="#94a3b8" />
-                </button>
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Confirm Password</label>
-              <div className="password-input-wrapper">
-                <input type={showConfirm ? "text" : "password"} className="form-input" placeholder="••••••••" value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }} disabled={loading} />
-                <button type="button" className="password-toggle" onClick={() => setShowConfirm(!showConfirm)} disabled={loading}>
-                  <Icon name="eye" size={16} color="#94a3b8" />
-                </button>
-              </div>
-            </div>
+            <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} /></div>
+            <div className="form-group"><label className="form-label">Password</label><input type="password" className="form-input" placeholder="At least 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} /></div>
+            <div className="form-group"><label className="form-label">Confirm Password</label><input type="password" className="form-input" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={loading} /></div>
             {error && <div className="form-error">{error}</div>}
-            <button type="submit" className="btn-primary login-btn" disabled={loading}>
-              {loading ? 'Creating Account...' : 'Create Account'}
-            </button>
+            <button type="submit" className="btn-primary full-width login-btn" disabled={loading}>{loading ? 'Creating...' : 'Create Account'}</button>
           </form>
           <p className="login-footer-text">Already have an account? <a href="#" className="create-account-link" onClick={(e) => { e.preventDefault(); onSwitchToLogin(); }}>Sign in</a></p>
         </div>
@@ -296,109 +413,69 @@ function SignupPage({ onSignup, onSwitchToLogin, loading, showToast }) {
   );
 }
 
-// Simple supabase helper used by App
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-let supabase = null
-if (supabaseUrl && supabaseKey) {
-  supabase = createClient(supabaseUrl, supabaseKey)
-} else {
-  console.warn('VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY not set — Supabase client disabled.')
-}
-export { supabase }
+/* ═══════════════════════════════════════════════════════════
+   TOP APP BAR
+   ═══════════════════════════════════════════════════════════ */
 
-/* ─── Sidebar ──────────────────────────────────────────── */
-function Sidebar({ activeSection, onNavigate }) {
-  return (
-    <aside className="sidebar">
-      <div className="sidebar-brand">
-        <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
-          <rect width="40" height="40" rx="10" fill="#2563EB"/>
-          <path d="M12 28V12h4v12h8v4H12z" fill="white"/>
-        </svg>
-        <span className="sidebar-brand-text">Lenovo Support</span>
-      </div>
-      <nav className="sidebar-nav">
-        {NAV_ITEMS.map(item => (
-          <button
-            key={item.id}
-            className={`sidebar-link ${activeSection === item.id ? 'active' : ''}`}
-            onClick={() => onNavigate(item.id)}
-          >
-            <Icon name={item.icon} size={18} />
-            <span>{item.label}</span>
-          </button>
-        ))}
-      </nav>
-      <div className="sidebar-footer">
-        <div className="sidebar-user-info">
-          <div className="sidebar-avatar">B</div>
-          <div>
-            <div className="sidebar-user-name">Bintu</div>
-            <div className="sidebar-user-role">Customer</div>
-          </div>
-        </div>
-      </div>
-    </aside>
-  );
-}
-
-/* ─── Header ──────────────────────────────────────────── */
-function Header({ activeSection, onLogout }) {
-  const [showProfile, setShowProfile] = useState(false);
+function TopAppBar({ onMenuClick, onLogout, onOpenProfile, onOpenSettings }) {
   const [showNotif, setShowNotif] = useState(false);
-  const profileRef = useRef(null);
+  const [bellRing, setBellRing] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const notifRef = useRef(null);
+  const profileRef = useRef(null);
 
   useEffect(() => {
     const handler = (e) => {
-      if (profileRef.current && !profileRef.current.contains(e.target)) setShowProfile(false);
       if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotif(false);
+      if (profileRef.current && !profileRef.current.contains(e.target)) setShowProfile(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const sectionLabel = NAV_ITEMS.find(n => n.id === activeSection)?.label || 'Dashboard';
-
   return (
-    <header className="header">
-      <div className="header-left">
-        <span className="breadcrumb-root">Home</span>
-        <span className="breadcrumb-sep">/</span>
-        <span className="breadcrumb-current">{sectionLabel}</span>
-      </div>
-      <div className="header-right">
-        <div className="header-search">
-          <Icon name="search" size={16} color="#94a3b8" />
-          <input type="text" placeholder="Search..." className="header-search-input" />
+    <header className="topbar">
+      <div className="topbar-left">
+        <button className="btn-icon" onClick={onMenuClick}><Icon name="menu" size={22} /></button>
+        <div className="topbar-brand">
+          <div className="topbar-brand-icon"><svg width="20" height="20" viewBox="0 0 40 40" fill="none"><path d="M12 28V12h4v12h8v4H12z" fill="#131414"/></svg></div>
+          <div>
+            <span className="topbar-brand-name">LaptopCare</span>
+            <span className="topbar-brand-sub"> Support</span>
+          </div>
         </div>
-        <div className="notif-wrapper" ref={notifRef}>
-          <button className="icon-btn" onClick={() => setShowNotif(!showNotif)}>
+      </div>
+      <div className="topbar-right">
+        <div className="dropdown-wrap" ref={notifRef}>
+          <button className={`topbar-notif-btn ${bellRing ? 'bell-ring' : ''}`} onClick={() => {
+            const next = !showNotif;
+            setShowNotif(next);
+            if (next) { setBellRing(true); setTimeout(() => setBellRing(false), 900); }
+          }}>
             <Icon name="bell" size={20} />
-            <span className="notif-badge">3</span>
+            <span className="topbar-notif-badge">3</span>
           </button>
           {showNotif && (
             <div className="dropdown-menu notif-dropdown">
               <div className="dropdown-header">Notifications</div>
-              <div className="notif-item"><div className="notif-dot blue"></div><div><p className="notif-text">Ticket TKT-10247 has been updated</p><span className="notif-time">2 hours ago</span></div></div>
+              <div className="notif-item"><div className="notif-dot blue"></div><div><p className="notif-text">Ticket CS-8992 has been updated</p><span className="notif-time">2 hours ago</span></div></div>
               <div className="notif-item"><div className="notif-dot green"></div><div><p className="notif-text">Warranty claim approved</p><span className="notif-time">5 hours ago</span></div></div>
-              <div className="notif-item"><div className="notif-dot amber"></div><div><p className="notif-text">AMC renewal reminder - 54 days left</p><span className="notif-time">1 day ago</span></div></div>
+              <div className="notif-item"><div className="notif-dot amber"></div><div><p className="notif-text">AMC renewal reminder — 54 days left</p><span className="notif-time">1 day ago</span></div></div>
             </div>
           )}
         </div>
-        <div className="profile-wrapper" ref={profileRef}>
-          <button className="avatar-btn" onClick={() => setShowProfile(!showProfile)}>
-            <div className="header-avatar">B</div>
-            <span className="header-user-name">Bintu</span>
+        <div className="dropdown-wrap" ref={profileRef}>
+          <button className="topbar-avatar" onClick={() => setShowProfile(!showProfile)}>
+            <div className="topbar-avatar-circle">A</div>
+            <span className="topbar-avatar-name">Alex</span>
             <Icon name="chevron-down" size={14} />
           </button>
           {showProfile && (
-            <div className="dropdown-menu profile-dropdown">
-              <div className="dropdown-item"><Icon name="user" size={16} /><span>My Profile</span></div>
-              <div className="dropdown-item"><Icon name="settings" size={16} /><span>Settings</span></div>
+            <div className="dropdown-menu">
+              <div className="dropdown-item" onClick={() => { onOpenProfile?.(); setShowProfile(false); }}><Icon name="user" size={16} /><span>My Profile</span></div>
+              <div className="dropdown-item" onClick={() => { onOpenSettings?.(); setShowProfile(false); }}><Icon name="settings" size={16} /><span>Settings</span></div>
               <div className="dropdown-divider"></div>
-              <div className="dropdown-item danger" onClick={onLogout}><Icon name="log-out" size={16} /><span>Sign out</span></div>
+              <div className="dropdown-item danger" onClick={() => { setShowProfile(false); onLogout?.(); }}><Icon name="log-out" size={16} /><span>Sign out</span></div>
             </div>
           )}
         </div>
@@ -407,90 +484,22 @@ function Header({ activeSection, onLogout }) {
   );
 }
 
-/* ─── Dashboard Hero ──────────────────────────────────── */
-function DashboardHero() {
-  const [animated, setAnimated] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setAnimated(true), 200); return () => clearTimeout(t); }, []);
+/* ═══════════════════════════════════════════════════════════
+   FLOATING BOTTOM DOCK
+   ═══════════════════════════════════════════════════════════ */
 
-  const stats = [
-    { icon: 'ticket', value: 24, label: 'Total Tickets', trend: '+3 this week', trendDir: 'up', color: '#2563EB' },
-    { icon: 'alert-circle', value: 5, label: 'Open', trend: '+2 new', trendDir: 'up', color: '#f59e0b' },
-    { icon: 'check-circle', value: 16, label: 'Resolved', trend: '87% rate', trendDir: 'up', color: '#10b981' },
-    { icon: 'shield', value: 210, label: 'Warranty Days Left', trend: 'Active', trendDir: 'up', color: '#8b5cf6' },
+function FloatingDock({ activeTab, onTabChange }) {
+  const tabs = [
+    { id: 'home', label: 'Home', icon: 'home' },
+    { id: 'products', label: 'Products', icon: 'laptop' },
+    { id: 'tickets', label: 'Tickets', icon: 'ticket' },
+    { id: 'faqs', label: 'FAQs', icon: 'help-circle' },
   ];
-
-  return (
-    <section id="dashboard" className="section">
-      <div className="hero-banner">
-        <img src="https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=1400" alt="Lenovo workspace" className="hero-image" />
-        <div className="hero-overlay">
-          <div className="hero-content">
-            <h1 className="hero-title">Welcome back, Bintu</h1>
-            <p className="hero-subtitle">Lenovo ThinkPad X1 Carbon · Active Warranty</p>
-          </div>
-        </div>
-      </div>
-      <div className="stats-grid">
-        {stats.map((stat, i) => (
-          <div key={i} className={`stat-card ${animated ? 'animate-in' : ''}`} style={{ animationDelay: `${i * 100}ms` }}>
-            <div className="stat-icon-wrap" style={{ backgroundColor: stat.color + '15', color: stat.color }}>
-              <Icon name={stat.icon} size={22} color={stat.color} />
-            </div>
-            <div className="stat-info">
-              <span className="stat-value">{stat.value}</span>
-              <span className="stat-label">{stat.label}</span>
-            </div>
-            <div className={`stat-trend ${stat.trendDir}`}>
-              <Icon name={`trending-${stat.trendDir}`} size={14} />
-              <span>{stat.trend}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* ─── My Products ──────────────────────────────────── */
-function MyProducts({ onDevClick }) {
-  return (
-    <section id="products" className="section">
-      <div className="section-header">
-        <h2 className="section-title">My Products</h2>
-        <p className="section-subtitle">Registered devices and their warranty information</p>
-      </div>
-      <div className="product-card">
-        <div className="product-image-wrap">
-          <img src="https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=600" alt="Lenovo ThinkPad X1 Carbon" className="product-image" />
-        </div>
-        <div className="product-details">
-          <div className="product-header-row">
-            <h3 className="product-name">Lenovo ThinkPad X1 Carbon</h3>
-            <span className="badge badge-green">Active</span>
-          </div>
-          <div className="product-specs">
-            <div className="spec"><span className="spec-label">Model</span><span className="spec-value">X1 Carbon Gen 11</span></div>
-            <div className="spec"><span className="spec-label">Serial Number</span><span className="spec-value">PF-4R2K7X</span></div>
-            <div className="spec"><span className="spec-label">Purchase Date</span><span className="spec-value">Nov 15, 2025</span></div>
-            <div className="spec"><span className="spec-label">Category</span><span className="spec-value">Ultrabook / Business Laptop</span></div>
-          </div>
-          <div className="product-actions">
-            <button className="btn-secondary" onClick={onDevClick}><Icon name="eye" size={16} /><span>View Details</span></button>
-            <button className="btn-secondary" onClick={onDevClick}><Icon name="alert-circle" size={16} /><span>Raise Complaint</span></button>
-            <button className="btn-secondary" onClick={onDevClick}><Icon name="shield" size={16} /><span>Check Warranty</span></button>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Warranty & AMC ──────────────────────────────────── */
-function WarrantyAMC({ onDevClick }) {
-  const [warrantyAnimated, setWarrantyAnimated] = useState(false);
-  const sectionRef = useRef(null);
+  const containerRef = useRef(null);
+  const [indicator, setIndicator] = useState({ x: 0, width: 0 });
 
   useEffect(() => {
+<<<<<<< HEAD
     const observer = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) setWarrantyAnimated(true); },
       { threshold: 0.3 }
@@ -600,222 +609,22 @@ function RaiseComplaint({ showToast }) {
         }
       } catch (err) {
         console.error('ticket create error', err)
+=======
+    const update = () => {
+      const container = containerRef.current;
+      if (!container) return;
+      const nodes = container.querySelectorAll('.dock-tab');
+      const activeIndex = tabs.findIndex(t => t.id === activeTab);
+      const node = nodes[activeIndex];
+      if (node) {
+        const rect = node.getBoundingClientRect();
+        const parentRect = container.getBoundingClientRect();
+        const x = rect.left - parentRect.left + (rect.width - rect.width) * 0; // left offset
+        setIndicator({ x, width: rect.width });
+>>>>>>> 674ed07d2572f540a9e63b4192cadf39c82aec90
       }
-      // fallback to local mock id
-      const id = `TKT-${10250 + Math.floor(Math.random() * 100)}`;
-      setTicketId(id);
-      setSubmitted(true);
-      showToast?.('Complaint submitted successfully.', 'success');
-    })();
-  };
-
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setFileName(e.target.files[0].name);
-    }
-  };
-
-  if (submitted) {
-    return (
-      <section id="complaint" className="section">
-        <div className="success-card">
-          <div className="success-icon-wrap">
-            <Icon name="check-circle" size={48} color="#10b981" />
-          </div>
-          <h3 className="success-title">Complaint Submitted Successfully!</h3>
-          <p className="success-subtitle">Your ticket <strong>{ticketId}</strong> has been created. Our team will review it shortly.</p>
-          <button className="btn-secondary" onClick={() => { setSubmitted(false); setForm({ product: '', category: '', priority: 'Medium', description: '' }); setFileName(''); }}>
-            Submit Another Complaint
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  return (
-    <section id="complaint" className="section">
-      <div className="section-header">
-        <h2 className="section-title">Raise a Complaint</h2>
-        <p className="section-subtitle">Submit a new support request for your product</p>
-      </div>
-      <form className="complaint-form" onSubmit={handleSubmit}>
-        <div className="complaint-grid">
-          <div className="complaint-left">
-            <div className="form-group">
-              <label className="form-label">Select Product</label>
-              <select className={`form-input ${errors.product ? 'input-error' : ''}`} value={form.product} onChange={(e) => { setForm({...form, product: e.target.value}); setErrors({...errors, product: ''}); }}>
-                <option value="">Choose a product...</option>
-                <option value="ThinkPad X1 Carbon">ThinkPad X1 Carbon Gen 11</option>
-              </select>
-              {errors.product && <span className="error-text">{errors.product}</span>}
-            </div>
-            <div className="form-group">
-              <label className="form-label">Issue Category</label>
-              <select className={`form-input ${errors.category ? 'input-error' : ''}`} value={form.category} onChange={(e) => { setForm({...form, category: e.target.value}); setErrors({...errors, category: ''}); }}>
-                <option value="">Select category...</option>
-                {ISSUE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              {errors.category && <span className="error-text">{errors.category}</span>}
-            </div>
-            <div className="form-group">
-              <label className="form-label">Priority</label>
-              <div className="priority-chips">
-                {['Low', 'Medium', 'High'].map(p => (
-                  <button key={p} type="button" className={`priority-chip ${form.priority === p ? 'active' : ''} ${p.toLowerCase()}`} onClick={() => setForm({...form, priority: p})}>{p}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="complaint-right">
-            <div className="form-group">
-              <label className="form-label">Description</label>
-              <textarea className={`form-input textarea ${errors.description ? 'input-error' : ''}`} placeholder="Describe your issue in detail..." rows={5} value={form.description} onChange={(e) => { setForm({...form, description: e.target.value}); setErrors({...errors, description: ''}); }}></textarea>
-              {errors.description && <span className="error-text">{errors.description}</span>}
-            </div>
-            <div className="form-group">
-              <label className="form-label">Attachments</label>
-              <div className="attachment-row">
-                <button type="button" className={`icon-btn voice-btn ${recording ? 'recording' : ''}`} onClick={() => setRecording(!recording)} title="Voice input">
-                  <Icon name="mic" size={18} color={recording ? '#fff' : undefined} />
-                </button>
-                <button type="button" className="file-upload-btn" onClick={() => fileInputRef.current?.click()}>
-                  <Icon name="paperclip" size={16} />
-                  <span>{fileName || 'Attach file'}</span>
-                </button>
-                <input ref={fileInputRef} type="file" className="hidden-input" onChange={handleFileChange} />
-              </div>
-            </div>
-          </div>
-        </div>
-        <button type="submit" className="btn-primary full-width submit-btn">Submit Complaint</button>
-      </form>
-    </section>
-  );
-}
-
-/* ─── My Tickets ──────────────────────────────────── */
-function MyTickets() {
-  const [filter, setFilter] = useState('All');
-  const [expandedId, setExpandedId] = useState(null);
-  const filters = ['All', 'Open', 'In Progress', 'Resolved', 'Closed', 'Escalated'];
-
-  const filtered = filter === 'All' ? MOCK_TICKETS : MOCK_TICKETS.filter(t => t.status === filter);
-
-  const statusClass = (s) => {
-    const map = { 'Open': 'blue', 'In Progress': 'amber', 'Resolved': 'green', 'Closed': 'gray', 'Escalated': 'red' };
-    return map[s] || 'gray';
-  };
-
-  const priorityClass = (p) => {
-    const map = { 'Low': 'green', 'Medium': 'amber', 'High': 'red' };
-    return map[p] || 'gray';
-  };
-
-  return (
-    <section id="tickets" className="section">
-      <div className="section-header">
-        <h2 className="section-title">My Tickets</h2>
-        <p className="section-subtitle">Track and manage your support requests</p>
-      </div>
-      <div className="filter-pills">
-        {filters.map(f => (
-          <button key={f} className={`filter-pill ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>{f}</button>
-        ))}
-      </div>
-      <div className="tickets-table-wrap">
-        <table className="tickets-table">
-          <thead>
-            <tr>
-              <th>Ticket ID</th>
-              <th>Product</th>
-              <th>Category</th>
-              <th>Status</th>
-              <th>Priority</th>
-              <th>Date</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(ticket => (
-              <Fragment key={ticket.id}>
-                <tr className={`ticket-row ${expandedId === ticket.id ? 'expanded' : ''}`} onClick={() => setExpandedId(expandedId === ticket.id ? null : ticket.id)}>
-                  <td className="ticket-id-cell">{ticket.id}</td>
-                  <td>{ticket.product}</td>
-                  <td>{ticket.category}</td>
-                  <td><span className={`badge badge-${statusClass(ticket.status)}`}>{ticket.status}</span></td>
-                  <td><span className={`priority-indicator ${priorityClass(ticket.priority)}`}>{ticket.priority}</span></td>
-                  <td className="date-cell">{ticket.date}</td>
-                  <td><button className="btn-sm" onClick={(e) => { e.stopPropagation(); setExpandedId(expandedId === ticket.id ? null : ticket.id); }}>View</button></td>
-                </tr>
-                {expandedId === ticket.id && (
-                  <tr className="ticket-detail-row">
-                    <td colSpan="7">
-                      <div className="ticket-detail">
-                        <p className="ticket-description">{ticket.description}</p>
-                        <div className="timeline-stepper">
-                          {TIMELINE_STEPS.map((step, i) => {
-                            const isActive = ticket.timeline.includes(step);
-                            const isCurrent = ticket.timeline[ticket.timeline.length - 1] === step;
-                            return (
-                              <div key={step} className={`timeline-step ${isActive ? 'active' : ''} ${isCurrent ? 'current' : ''}`}>
-                                <div className="timeline-dot">
-                                  {isActive && <Icon name="check" size={12} color="#fff" />}
-                                </div>
-                                {i < TIMELINE_STEPS.length - 1 && <div className={`timeline-line ${isActive && ticket.timeline.includes(TIMELINE_STEPS[i+1]) ? 'active' : ''}`}></div>}
-                                <span className="timeline-label">{step}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-        {filtered.length === 0 && <div className="empty-state"><p>No tickets found for this filter.</p></div>}
-      </div>
-    </section>
-  );
-}
-
-/* ─── Simple Markdown Renderer ────────────────────────── */
-function renderMarkdown(text) {
-  if (!text) return text;
-  const lines = text.split('\n');
-  const elements = [];
-  let key = 0;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    // Process inline formatting
-    const processInline = (str) => {
-      const parts = [];
-      let remaining = str;
-      let k = 0;
-      while (remaining.length > 0) {
-        const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
-        const italicMatch = remaining.match(/\*(.+?)\*/);
-        const match = boldMatch && (!italicMatch || boldMatch.index <= italicMatch.index) ? boldMatch : italicMatch;
-        if (match) {
-          if (match.index > 0) {
-            parts.push(<span key={k++}>{remaining.substring(0, match.index)}</span>);
-          }
-          if (match[0].startsWith('**')) {
-            parts.push(<strong key={k++}>{match[1]}</strong>);
-          } else {
-            parts.push(<em key={k++}>{match[1]}</em>);
-          }
-          remaining = remaining.substring(match.index + match[0].length);
-        } else {
-          parts.push(<span key={k++}>{remaining}</span>);
-          break;
-        }
-      }
-      return parts;
     };
+<<<<<<< HEAD
 
     if (line.startsWith('• ') || line.startsWith('- ')) {
       elements.push(<div key={key++} style={{ paddingLeft: '12px', display: 'flex', gap: '6px', marginTop: '2px' }}><span style={{ flexShrink: 0 }}>•</span><span>{processInline(line.substring(2))}</span></div>);
@@ -871,382 +680,1287 @@ function AIChat() {
     e.preventDefault();
     sendMessage(input);
   };
+=======
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [activeTab]);
+>>>>>>> 674ed07d2572f540a9e63b4192cadf39c82aec90
 
   return (
-    <section id="chat" className="section">
-      <div className="section-header">
-        <h2 className="section-title">AI Support Chat</h2>
-        <p className="section-subtitle">Get instant help from our AI-powered assistant</p>
-      </div>
-      <div className="chat-container">
-        <div className="chat-header">
-          <div className="chat-bot-info">
-            <div className="chat-bot-avatar">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <rect width="24" height="24" rx="6" fill="#2563EB"/>
-                <path d="M7 12h10M12 7v10" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <div>
-              <span className="chat-bot-name">AI Support</span>
-              <span className="chat-bot-powered">Powered by Gemini</span>
-            </div>
-          </div>
-          <div className="online-indicator">
-            <span className="online-dot"></span>
-            <span>Online</span>
-          </div>
-        </div>
-        <div className="chat-messages">
-          {messages.map((msg, i) => (
-            <div key={i} className={`chat-bubble ${msg.role}`}>
-              {msg.role === 'assistant' && (
-                <div className="bubble-avatar">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <rect width="24" height="24" rx="6" fill="#2563EB"/>
-                    <path d="M7 12h10M12 7v10" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                </div>
-              )}
-              <div className={`bubble-content ${msg.role}`}>
-                {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
-              </div>
-            </div>
-          ))}
-          {loading && (
-            <div className="chat-bubble assistant">
-              <div className="bubble-avatar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <rect width="24" height="24" rx="6" fill="#2563EB"/>
-                  <path d="M7 12h10M12 7v10" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-              </div>
-              <div className="bubble-content assistant typing">
-                <span className="typing-dot"></span>
-                <span className="typing-dot"></span>
-                <span className="typing-dot"></span>
-              </div>
-            </div>
-          )}
-          <div ref={chatEndRef} />
-        </div>
-        <div className="quick-replies">
-          {quickReplies.map(qr => (
-            <button key={qr} className="quick-reply-chip" onClick={() => sendMessage(qr)}>{qr}</button>
-          ))}
-        </div>
-        <form className="chat-input-bar" onSubmit={handleSubmit}>
-          <input type="text" className="chat-input" placeholder="Type your message..." value={input} onChange={(e) => setInput(e.target.value)} />
-          <button type="button" className="icon-btn chat-mic-btn"><Icon name="mic" size={18} /></button>
-          <button type="submit" className="chat-send-btn" disabled={!input.trim()}>
-            <Icon name="send" size={18} color="#fff" />
-          </button>
-        </form>
-      </div>
-    </section>
+    <nav className="floating-dock" ref={containerRef}>
+      <div className="active-indicator" style={{ transform: `translateX(${indicator.x}px)`, width: indicator.width ? `${indicator.width}px` : undefined }} />
+      {tabs.map(tab => (
+        <button key={tab.id} className={`dock-tab ${activeTab === tab.id ? 'active' : ''}`} onClick={() => onTabChange(tab.id)}>
+          <span className="dock-tab-icon"><Icon name={tab.icon} size={20} /></span>
+          <span className="dock-tab-label">{tab.label}</span>
+        </button>
+      ))}
+    </nav>
   );
 }
 
-/* ─── Feedback ──────────────────────────────────── */
-function Feedback({ showToast }) {
-  const [rating, setRating] = useState(0);
-  const [hover, setHover] = useState(0);
-  const [comment, setComment] = useState('');
-  const [selectedTicket, setSelectedTicket] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+/* ═══════════════════════════════════════════════════════════
+   SUPPORT FAB + MODAL
+   ═══════════════════════════════════════════════════════════ */
 
-  const handleSubmit = (e) => {
-    if (e) {
-      e.preventDefault();
-    }
-
-    if (!selectedTicket) {
-      showToast?.('Please select a ticket before submitting feedback.', 'error');
-      return;
-    }
-
-    if (!rating) {
-      showToast?.('Please select a rating before submitting feedback.', 'error');
-      return;
-    }
-
-    setSubmitted(true);
-    showToast?.('Thank you for your feedback!', 'success');
-  };
-
-  if (submitted) {
-    return (
-      <section id="feedback" className="section">
-        <div className="success-card feedback-success">
-          <div className="success-icon-wrap animated-check">
-            <Icon name="check-circle" size={56} color="#10b981" />
-          </div>
-          <h3 className="success-title">Thank you for your feedback!</h3>
-          <p className="success-subtitle">Your response helps us improve our support quality.</p>
-          <button className="btn-secondary" onClick={() => { setSubmitted(false); setRating(0); setComment(''); setSelectedTicket(''); }}>Submit More Feedback</button>
-        </div>
-      </section>
-    );
-  }
-
+function SupportFAB({ onClick }) {
   return (
-    <section id="feedback" className="section">
-      <div className="section-header">
-        <h2 className="section-title">Feedback</h2>
-        <p className="section-subtitle">Help us improve by sharing your experience</p>
-      </div>
-      <div className="feedback-card">
-        <div className="form-group">
-          <label className="form-label">Select Ticket</label>
-          <select className="form-input" value={selectedTicket} onChange={(e) => setSelectedTicket(e.target.value)}>
-            <option value="">Choose a ticket...</option>
-            {MOCK_TICKETS.map(t => <option key={t.id} value={t.id}>{t.id} - {t.category}</option>)}
-          </select>
-        </div>
-        <div className="form-group">
-          <label className="form-label">Rating</label>
-          <div className="stars-row">
-            {[1, 2, 3, 4, 5].map(star => (
-              <button
-                key={star}
-                type="button"
-                className={`star-btn ${star <= (hover || rating) ? 'filled' : ''}`}
-                onClick={() => setRating(star)}
-                onMouseEnter={() => setHover(star)}
-                onMouseLeave={() => setHover(0)}
-              >
-                <svg width="32" height="32" viewBox="0 0 24 24" fill={star <= (hover || rating) ? '#f59e0b' : 'none'} stroke={star <= (hover || rating) ? '#f59e0b' : '#94a3b8'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="form-group">
-          <label className="form-label">Comments</label>
-          <textarea className="form-input textarea" placeholder="Share your experience..." rows={4} value={comment} onChange={(e) => setComment(e.target.value)}></textarea>
-        </div>
-        <button className="btn-primary full-width" type="button" onClick={handleSubmit}>Submit Feedback</button>
-      </div>
-    </section>
+    <button className="support-fab" onClick={onClick} title="Need help?">
+      <span className="fab-pulse"></span>
+      <Icon name="headphones" size={24} />
+    </button>
   );
 }
 
-/* ─── Toast Notification ──────────────────────────────── */
-function Toast({ message, visible, type = 'success' }) {
-  const iconName = type === 'error' ? 'alert-circle' : type === 'warning' ? 'alert-circle' : 'check-circle';
+function SupportHubModal({ onClose, onChat, onVoice }) {
   return (
-    <div className={`toast ${visible ? 'show' : ''} toast-${type}`}>
-      <Icon name={iconName} size={18} color={type === 'error' ? '#dc2626' : type === 'warning' ? '#f59e0b' : '#10b981'} />
-      <span>{message}</span>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="support-hub-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}><Icon name="x" size={18} /></button>
+        <h2 className="modal-title">Need Assistance?</h2>
+        <p className="modal-subtitle">Choose how you'd like to connect</p>
+        <div className="support-option" onClick={onVoice}>
+          <div className="support-option-icon"><Icon name="mic" size={22} color="#131414" /></div>
+          <div className="support-option-text">
+            <h4>Speak with AI</h4>
+            <p>Talk to our AI voice assistant for instant help</p>
+          </div>
+          <span className="support-option-arrow"><Icon name="chevron-right" size={18} /></span>
+        </div>
+        <div className="support-option" onClick={onChat}>
+          <div className="support-option-icon"><Icon name="message-circle" size={22} color="#131414" /></div>
+          <div className="support-option-text">
+            <h4>Chat with AI</h4>
+            <p>Chat with our AI assistant for step-by-step support</p>
+          </div>
+          <span className="support-option-arrow"><Icon name="chevron-right" size={18} /></span>
+        </div>
+        <p className="modal-footer-note">24/7 Automated Support</p>
+      </div>
     </div>
   );
 }
 
-/* ─── Main App ──────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   HAMBURGER DRAWER
+   ═══════════════════════════════════════════════════════════ */
+
+function HamburgerDrawer({ onClose, onOpenLanguage, onOpenAboutAI, onOpenTelecom, onOpenTOS, onOpenPrivacy }) {
+  const items = [
+    { img: '/images/lang.svg', title: 'Language / हिंदी', desc: '', onClick: () => { onClose(); onOpenLanguage?.(); } },
+    { img: '/images/ai.svg', title: 'About Our AI', desc: 'Our technology & how it works', onClick: () => { onClose(); onOpenAboutAI?.(); } },
+    { img: '/images/telecom.svg', title: 'Telecom Solutions (B2B)', desc: 'Explore our enterprise solutions', onClick: () => { onClose(); onOpenTelecom?.(); } },
+    { img: '/images/terms.svg', title: 'Terms of Service', desc: 'Read our terms', onClick: () => { onClose(); onOpenTOS?.(); } },
+    { img: '/images/privacy.svg', title: 'Privacy Policy', desc: 'Your data privacy matters', onClick: () => { onClose(); onOpenPrivacy?.(); } },
+  ];
+
+  return (
+    <>
+      <div className="drawer-overlay" onClick={onClose}></div>
+      <div className="drawer">
+        <div className="drawer-header">
+          <button className="btn-icon" onClick={onClose}><Icon name="x" size={22} /></button>
+        </div>
+        <div className="drawer-body">
+          {items.map((item, i) => (
+            <div key={i} className="drawer-item" onClick={item.onClick}>
+              <img src={item.img} alt={item.title} className="drawer-item-thumb" />
+              <div className="drawer-item-text">
+                <span>{item.title}</span>
+                {item.desc && <small>{item.desc}</small>}
+              </div>
+              <Icon name="chevron-right" size={16} color="#8a8a8a" />
+            </div>
+          ))}
+        </div>
+        <div className="drawer-footer">© 2026 LaptopCare Support</div>
+      </div>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HOME PAGE
+   ═══════════════════════════════════════════════════════════ */
+
+function HomePage({ onNavigate }) {
+  return (
+    <div>
+      <div className="home-hero">
+        <video className="home-bg-video" autoPlay muted loop playsInline poster="/images/lang.svg" aria-hidden>
+          <source src="/videos/home-bg.mp4" type="video/mp4" />
+          {/* Fallback text */}
+        </video>
+        <div className="home-hero-overlay" aria-hidden></div>
+        <div className="home-hero-content">
+          <div className="home-greeting">
+            <h1>Hi, Alex</h1>
+            <p>How can we help you today?</p>
+          </div>
+          <h2 className="home-section-title">Popular Actions</h2>
+          <div className="home-actions-grid">
+            {[
+              { icon: 'shield', title: 'Check Warranty', desc: 'Check your warranty status', tab: 'products' },
+              { icon: 'ticket', title: 'Track Complaint', desc: 'Track your existing ticket', tab: 'tickets' },
+            ].map((action, i) => (
+              <div key={i} className={`home-action-card animate-in stagger-${i + 1}`} onClick={() => action.tab && onNavigate(action.tab)}>
+                <div className="home-action-icon"><Icon name={action.icon} size={24} /></div>
+                <div className="home-action-title">{action.title}</div>
+                <div className="home-action-desc">{action.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MY PRODUCTS PAGE
+   ═══════════════════════════════════════════════════════════ */
+
+function MyProductsPage({ onSelectProduct }) {
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1>My Products</h1>
+          <p>Track your registered devices</p>
+        </div>
+        <button className="btn-primary"><Icon name="plus" size={18} /><span>Add Product</span></button>
+      </div>
+      <div className="products-search">
+        <span className="search-icon"><Icon name="search" size={18} /></span>
+        <input type="text" placeholder="Search your devices" />
+      </div>
+      {MOCK_PRODUCTS.map(product => (
+        <div key={product.id} className="product-card" onClick={() => onSelectProduct(product)}>
+          <img src={product.image} alt={product.name} className="product-card-img" />
+          <div className="product-card-info">
+            <div className="product-card-name">{product.name}</div>
+            <div className="product-card-serial">Serial No: {product.serial}</div>
+            <div className="product-card-badges">
+              <span className={`badge ${product.warranty === 'Active' ? 'badge-green' : 'badge-amber'}`}>{product.warranty}</span>
+              {product.amc !== 'Inactive' && <span className={`badge ${product.amc === 'Active' ? 'badge-green' : 'badge-amber'}`}>AMC {product.amc}</span>}
+            </div>
+          </div>
+          <Icon name="chevron-right" size={20} color="#8a8a8a" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRODUCT DETAIL VIEW
+   ═══════════════════════════════════════════════════════════ */
+
+function ProductDetailView({ product, onBack, onWarrantyClaim, onRenewAMC }) {
+  const warrantyPercent = Math.round((1 - product.warrantyDays / product.warrantyTotal) * 100);
+  const amcPercent = product.amcDays > 0 ? Math.round((1 - product.amcDays / product.amcTotal) * 100) : 0;
+
+  const [progressRef, progressInView] = useInView({ threshold: 0.12 });
+  const warrantyCount = useRafCount(progressInView ? product.warrantyDays : 0, 1200);
+  const amcCount = useRafCount(progressInView ? product.amcDays : 0, 1200);
+  const imageRef = useRef(null);
+
+  useEffect(() => {
+    let raf = null;
+    const onScroll = () => {
+      if (!imageRef.current) return;
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const y = window.scrollY || window.pageYOffset;
+        const translate = Math.max(-20, Math.min(20, y * 0.15));
+        imageRef.current.style.transform = `translateY(${translate}px)`;
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => { window.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, []);
+
+  return (
+    <div>
+      <div className="detail-header">
+        <button className="back-btn" onClick={onBack}><Icon name="arrow-left" size={20} /></button>
+        <h1>Product Details</h1>
+      </div>
+      <div className="product-detail-hero">
+        <img ref={imageRef} src={product.image} alt={product.name} className="product-detail-image" />
+        <div className="product-detail-info">
+          <div className="product-detail-name">{product.name}</div>
+          <div className="product-detail-serial">Serial No: {product.serial}</div>
+          <span className={`badge ${product.status === 'Active' ? 'badge-green' : 'badge-amber'}`}>{product.status}</span>
+          <div className="product-status-cards" style={{marginTop: 16}}>
+            <div className="product-status-card">
+              <div className="status-label">Warranty</div>
+              <span className={`badge ${product.warranty === 'Active' ? 'badge-green' : 'badge-amber'}`}>{product.warranty}</span>
+              <div className="status-days">{warrantyCount} days remaining</div>
+              <div className="progress-wrap" ref={progressRef}>
+                <div className="progress-bar"><div className={`progress-fill ${product.warrantyDays > 60 ? 'green' : 'amber'}`} style={{transform: progressInView ? `scaleX(${Math.max(0, Math.min(1, warrantyPercent / 100))})` : 'scaleX(0)'}}></div></div>
+              </div>
+            </div>
+            <div className="product-status-card">
+              <div className="status-label">AMC</div>
+              <span className={`badge ${product.amc === 'Active' ? 'badge-green' : product.amc === 'Inactive' ? 'badge-gray' : 'badge-amber'}`}>{product.amc}</span>
+              <div className="status-days">{amcCount > 0 ? `${amcCount} days remaining` : 'Not active'}</div>
+              {product.amcDays > 0 && (
+                <div className="progress-wrap">
+                  <div className="progress-bar"><div className={`progress-fill ${product.amcDays > 60 ? 'green' : 'amber'}`} style={{transform: progressInView ? `scaleX(${Math.max(0, Math.min(1, amcPercent / 100))})` : 'scaleX(0)'}}></div></div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      <h3 className="quick-actions-title">Quick Actions</h3>
+      <div className="quick-actions-list">
+        <div className="quick-action-item" onClick={onWarrantyClaim}><Icon name="upload" size={18} /><span>Raise Warranty Claim</span><span className="quick-action-arrow"><Icon name="chevron-right" size={16} /></span></div>
+        <div className="quick-action-item"><Icon name="activity" size={18} /><span>Raise AMC Service Request</span><span className="quick-action-arrow"><Icon name="chevron-right" size={16} /></span></div>
+        <div className="quick-action-item" onClick={onRenewAMC}><Icon name="shield" size={18} /><span>Renew AMC</span><span className="quick-action-arrow"><Icon name="chevron-right" size={16} /></span></div>
+        <div className="quick-action-item"><Icon name="alert-triangle" size={18} /><span>Raise General Complaint</span><span className="quick-action-arrow"><Icon name="chevron-right" size={16} /></span></div>
+        <div className="quick-action-item"><Icon name="message-circle" size={18} /><span>AI Troubleshoot</span><span className="quick-action-arrow"><Icon name="chevron-right" size={16} /></span></div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WARRANTY CLAIM WIZARD
+   ═══════════════════════════════════════════════════════════ */
+
+function WarrantyClaimWizard({ product, onBack, onComplete, showToast }) {
+  const [step, setStep] = useState(1);
+  const [category, setCategory] = useState('');
+  const [description, setDescription] = useState('');
+  const [contactMethod, setContactMethod] = useState('email');
+  const [files, setFiles] = useState([]);
+  const fileRef = useRef(null);
+
+  const stepLabels = ['Issue Details', 'Upload', 'Review'];
+
+  const handleSubmit = () => {
+    const ticketId = `CS-${9100 + Math.floor(Math.random() * 900)}`;
+    showToast?.('Warranty claim submitted! Ticket: ' + ticketId, 'success');
+    onComplete(ticketId);
+  };
+
+  return (
+    <div>
+      <div className="detail-header">
+        <button className="back-btn" onClick={onBack}><Icon name="arrow-left" size={20} /></button>
+        <h1>Raise Warranty Claim</h1>
+      </div>
+      <div className="wizard-header">
+        {stepLabels.map((label, i) => (
+          <Fragment key={i}>
+            <div className={`wizard-step ${step === i + 1 ? 'active' : ''} ${step > i + 1 ? 'completed' : ''}`}>
+              <div className="wizard-step-number">{step > i + 1 ? <Icon name="check" size={14} color="white" /> : i + 1}</div>
+              <span className="wizard-step-label">{label}</span>
+            </div>
+            {i < stepLabels.length - 1 && <div className={`wizard-step-line ${step > i + 1 ? 'completed' : step === i + 2 ? 'active' : ''}`}></div>}
+          </Fragment>
+        ))}
+      </div>
+
+      <div className="wizard-body">
+        {step === 1 && (
+          <>
+            <div className="form-group" style={{marginBottom: 20}}>
+              <label className="form-label">Issue Category</label>
+              <div className="category-grid">
+                {ISSUE_CATEGORIES.map(cat => (
+                  <div key={cat.id} className={`category-card ${category === cat.id ? 'selected' : ''}`} onClick={() => setCategory(cat.id)}>
+                    <div className="category-card-icon"><Icon name={cat.icon} size={22} /></div>
+                    <span className="category-card-label">{cat.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="form-group" style={{marginBottom: 20}}>
+              <label className="form-label">Describe the Issue</label>
+              <textarea className="form-input textarea" placeholder="Explain the issue in detail..." value={description} onChange={(e) => setDescription(e.target.value)} rows={4}></textarea>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Preferred Contact Method</label>
+              <div className="contact-methods">
+                {['Email', 'Phone', 'WhatsApp'].map(m => (
+                  <div key={m} className={`contact-method ${contactMethod === m.toLowerCase() ? 'selected' : ''}`} onClick={() => setContactMethod(m.toLowerCase())}>
+                    <Icon name={m === 'Email' ? 'mail' : m === 'Phone' ? 'phone' : 'message-circle'} size={20} />
+                    <span className="contact-method-label">{m}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+        {step === 2 && (
+          <div style={{textAlign: 'center', padding: '40px 0'}}>
+            <div style={{width: 80, height: 80, margin: '0 auto 16px', borderRadius: 16, background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+              <Icon name="upload" size={32} color="#131414" />
+            </div>
+            <h3 style={{marginBottom: 8}}>Upload Attachments</h3>
+            <p style={{color: 'var(--text-secondary)', marginBottom: 20, fontSize: 14}}>Upload photos, screenshots, or logs related to your issue</p>
+            <input type="file" ref={fileRef} style={{display: 'none'}} multiple onChange={(e) => setFiles([...files, ...Array.from(e.target.files)])} />
+            <button className="btn-secondary" onClick={() => fileRef.current?.click()}><Icon name="paperclip" size={16} /><span>Choose Files</span></button>
+            {files.length > 0 && <p style={{marginTop: 12, fontSize: 13, color: 'var(--text-muted)'}}>{files.length} file(s) selected</p>}
+          </div>
+        )}
+        {step === 3 && (
+          <div>
+            <h3 style={{marginBottom: 20}}>Review Your Claim</h3>
+            <div style={{display: 'grid', gap: 16}}>
+              <div><span style={{fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase'}}>Product</span><p style={{fontWeight: 500}}>{product.name} · {product.serial}</p></div>
+              <div><span style={{fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase'}}>Category</span><p style={{fontWeight: 500}}>{category || 'Not selected'}</p></div>
+              <div><span style={{fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase'}}>Description</span><p style={{fontWeight: 500}}>{description || 'No description provided'}</p></div>
+              <div><span style={{fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase'}}>Contact</span><p style={{fontWeight: 500, textTransform: 'capitalize'}}>{contactMethod}</p></div>
+              <div><span style={{fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase'}}>Attachments</span><p style={{fontWeight: 500}}>{files.length} file(s)</p></div>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="wizard-footer">
+        <button className="btn-secondary" onClick={() => step > 1 ? setStep(step - 1) : onBack()}>{step === 1 ? 'Cancel' : 'Back'}</button>
+        <button className="btn-primary" onClick={() => step < 3 ? setStep(step + 1) : handleSubmit()}>
+          {step < 3 ? <>Continue to {stepLabels[step]} <Icon name="chevron-right" size={16} /></> : 'Submit Claim'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENEW AMC WIZARD
+   ═══════════════════════════════════════════════════════════ */
+
+function RenewAMCWizard({ product, onBack, showToast }) {
+  const [step, setStep] = useState(1);
+  const [plan, setPlan] = useState('premium');
+
+  const plans = [
+    { id: 'basic', name: 'Basic AMC', price: '₹999 / year' },
+    { id: 'premium', name: 'Premium AMC', price: '₹1,999 / year', highlighted: true },
+    { id: 'enterprise', name: 'Enterprise AMC', price: '₹2,999 / year' },
+  ];
+
+  const benefits = ['Free Service Visits', 'Priority Support', 'Genuine Parts', 'Annual Maintenance'];
+  const stepLabels = ['Plan & Details', 'Payment', 'Confirm'];
+
+  return (
+    <div>
+      <div className="detail-header">
+        <button className="back-btn" onClick={onBack}><Icon name="arrow-left" size={20} /></button>
+        <h1>Renew AMC</h1>
+      </div>
+      <div className="wizard-header">
+        {stepLabels.map((label, i) => (
+          <Fragment key={i}>
+            <div className={`wizard-step ${step === i + 1 ? 'active' : ''} ${step > i + 1 ? 'completed' : ''}`}>
+              <div className="wizard-step-number">{step > i + 1 ? <Icon name="check" size={14} color="white" /> : i + 1}</div>
+              <span className="wizard-step-label">{label}</span>
+            </div>
+            {i < stepLabels.length - 1 && <div className={`wizard-step-line ${step > i + 1 ? 'completed' : step === i + 2 ? 'active' : ''}`}></div>}
+          </Fragment>
+        ))}
+      </div>
+      <div className="wizard-body">
+        {step === 1 && (
+          <>
+            <h3 style={{marginBottom: 16}}>Select AMC Plan</h3>
+            <div className="amc-plans">
+              {plans.map(p => (
+                <div key={p.id} className={`amc-plan-card ${plan === p.id ? 'selected' : ''} ${p.highlighted && plan !== p.id ? 'highlighted' : ''}`} onClick={() => setPlan(p.id)}>
+                  <div className="amc-plan-info">
+                    <div className="amc-plan-name">{p.name}</div>
+                    <div className="amc-plan-price">{p.price}</div>
+                  </div>
+                  <div className="amc-plan-radio"></div>
+                </div>
+              ))}
+            </div>
+            <div className="amc-benefits">
+              <h4>Benefits Included</h4>
+              {benefits.map((b, i) => (
+                <div key={i} className="amc-benefit-item">
+                  <Icon name="check-circle" size={16} color="#22c55e" />
+                  <span>{b}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        {step === 2 && (
+          <div style={{textAlign: 'center', padding: '40px 0'}}>
+            <div style={{width: 80, height: 80, margin: '0 auto 16px', borderRadius: 16, background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+              <Icon name="lock" size={32} color="#131414" />
+            </div>
+            <h3 style={{marginBottom: 8}}>Payment</h3>
+            <p style={{color: 'var(--text-secondary)', fontSize: 14, marginBottom: 20}}>Payment integration coming soon. Click continue to confirm.</p>
+            <div style={{padding: 16, background: 'var(--bg-primary)', borderRadius: 12, display: 'inline-block'}}>
+              <span style={{fontWeight: 600}}>Selected: </span>
+              <span>{plans.find(p => p.id === plan)?.name} — {plans.find(p => p.id === plan)?.price}</span>
+            </div>
+          </div>
+        )}
+        {step === 3 && (
+          <div className="resolved-card">
+            <div className="resolved-icon"><Icon name="check-circle" size={40} color="#22c55e" /></div>
+            <div className="resolved-title">AMC Renewed!</div>
+            <div className="resolved-subtitle">Your {plans.find(p => p.id === plan)?.name} has been renewed for {product.name}.</div>
+            <button className="btn-primary full-width" onClick={onBack}>Back to Products</button>
+          </div>
+        )}
+      </div>
+      {step < 3 && (
+        <div className="wizard-footer">
+          <button className="btn-secondary" onClick={() => step > 1 ? setStep(step - 1) : onBack()}>{step === 1 ? 'Cancel' : 'Back'}</button>
+          <button className="btn-primary" onClick={() => setStep(step + 1)}>Continue <Icon name="chevron-right" size={16} /></button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TICKETS PAGE
+   ═══════════════════════════════════════════════════════════ */
+
+function TicketsPage({ onSelectTicket }) {
+  const [filter, setFilter] = useState('All');
+  const filters = [
+    { label: 'All', count: MOCK_TICKETS.length },
+    { label: 'In Progress', count: MOCK_TICKETS.filter(t => t.status === 'In Progress').length },
+    { label: 'Open', count: MOCK_TICKETS.filter(t => t.status === 'Open').length },
+    { label: 'Resolved', count: MOCK_TICKETS.filter(t => t.status === 'Resolved').length },
+    { label: 'Closed', count: MOCK_TICKETS.filter(t => t.status === 'Closed').length },
+  ];
+  const filtered = filter === 'All' ? MOCK_TICKETS : MOCK_TICKETS.filter(t => t.status === filter);
+  const listRef = useRef(null);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const items = Array.from(el.querySelectorAll('.ticket-card'));
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          items.forEach((it, i) => {
+            if (it.classList.contains('in')) return;
+            setTimeout(() => it.classList.add('in'), i * 50);
+          });
+          obs.disconnect();
+        }
+      });
+    }, { threshold: 0.06 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [filter]);
+
+  return (
+    <div>
+      <div className="tickets-header">
+        <h1>My Tickets</h1>
+      </div>
+      <p className="tickets-subtitle">Track your support requests</p>
+      <div className="products-search" style={{marginBottom: 20}}>
+        <span className="search-icon"><Icon name="search" size={18} /></span>
+        <input type="text" placeholder="Search by Ticket ID" />
+      </div>
+      <div className="filter-tabs">
+        {filters.map(f => (
+          <button key={f.label} className={`filter-tab ${filter === f.label ? 'active' : ''}`} onClick={() => setFilter(f.label)}>
+            {f.label}<span className="filter-count">{f.count}</span>
+          </button>
+        ))}
+      </div>
+      <div ref={listRef}>
+      {filtered.map(ticket => (
+        <div key={ticket.id} className="ticket-card" onClick={() => onSelectTicket(ticket)}>
+          <div className={`ticket-status-dot ${ticket.status.toLowerCase().replace(' ', '-')}`}></div>
+          <div className="ticket-card-body">
+            <div className="ticket-card-top">
+              <span className={`badge ${ticket.status === 'Open' ? 'badge-amber' : ticket.status === 'In Progress' ? 'badge-blue' : ticket.status === 'Resolved' ? 'badge-green' : 'badge-gray'}`}>{ticket.status}</span>
+              <span className="ticket-card-id">{ticket.id}</span>
+              <span className="ticket-card-date">{ticket.created}</span>
+            </div>
+            <div className="ticket-card-title">{ticket.title}</div>
+            <div className="ticket-card-meta">Last updated: {ticket.updated} · Priority: {ticket.priority}</div>
+          </div>
+          <div className="ticket-card-actions">
+            <button className="btn-sm" onClick={(e) => { e.stopPropagation(); onSelectTicket(ticket); }}><Icon name="message-circle" size={14} /></button>
+          </div>
+        </div>
+      ))}
+      </div>
+      {filtered.length === 0 && <div className="empty-state"><p>No tickets found for this filter.</p></div>}
+
+      <div style={{marginTop: 32, padding: '24px 0', borderTop: '1px solid var(--border)'}}>
+        <h3 style={{textAlign: 'center', marginBottom: 16, color: 'var(--text-secondary)', fontSize: 14}}>Track Your Ticket in 4 Simple Steps</h3>
+        <div className="status-stepper">
+          {['Created', 'Assigned', 'In Progress', 'Resolved'].map((s, i) => (
+            <Fragment key={s}>
+              <div className="stepper-step">
+                <div className="stepper-icon"><Icon name={i === 0 ? 'star' : i === 1 ? 'user' : i === 2 ? 'activity' : 'check-circle'} size={20} /></div>
+                <span className="stepper-label">{s}</span>
+              </div>
+              {i < 3 && <div className="stepper-line"></div>}
+            </Fragment>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TICKET DETAIL VIEW
+   ═══════════════════════════════════════════════════════════ */
+
+function TicketDetailView({ ticket, onBack, onChat, showToast }) {
+  const [activeDetailTab, setActiveDetailTab] = useState('details');
+  const tabs = ['Details', 'Timeline', 'Updates', 'Attachments'];
+  const timelineRef = useRef(null);
+
+  useEffect(() => {
+    const el = timelineRef.current;
+    if (!el) return;
+    const items = Array.from(el.querySelectorAll('.timeline-item'));
+    const line = el.querySelector('.timeline-line');
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        if (line) line.classList.add('in');
+        items.forEach((it, i) => setTimeout(() => it.classList.add('in'), i * 50));
+        obs.disconnect();
+      }
+    }, { threshold: 0.12 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [ticket]);
+
+  return (
+    <div>
+      <div className="detail-header">
+        <button className="back-btn" onClick={onBack}><Icon name="arrow-left" size={20} /></button>
+        <h1>Ticket Details</h1>
+        <div style={{marginLeft: 'auto'}}><button className="btn-icon"><Icon name="more-vertical" size={20} /></button></div>
+      </div>
+
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24}}>
+        <div>
+          <span className={`badge ${ticket.status === 'In Progress' ? 'badge-blue' : ticket.status === 'Open' ? 'badge-amber' : ticket.status === 'Resolved' ? 'badge-green' : 'badge-gray'}`} style={{marginBottom: 8, display: 'inline-block'}}>{ticket.status}</span>
+          <h2 className="ticket-detail-title">{ticket.title}</h2>
+          <p className="ticket-detail-meta">Created: {ticket.created} · Last Updated: {ticket.updated}</p>
+          <p className="ticket-detail-meta">Priority: {ticket.priority} · #{ticket.id}</p>
+        </div>
+      </div>
+
+      <div className="ticket-detail-tabs">
+        {tabs.map(tab => (
+          <button key={tab} className={`ticket-detail-tab ${activeDetailTab === tab.toLowerCase() ? 'active' : ''}`} onClick={() => setActiveDetailTab(tab.toLowerCase())}>{tab}</button>
+        ))}
+      </div>
+
+      <div className="ticket-detail-section">
+        {activeDetailTab === 'details' && (
+          <>
+            <div className="raise-ticket-product" style={{marginBottom: 24}}>
+              <img src={MOCK_PRODUCTS.find(p => p.name === ticket.product)?.image || 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=200'} alt={ticket.product} style={{width: 56, height: 56, borderRadius: 12, objectFit: 'cover'}} />
+              <div className="raise-ticket-product-info">
+                <h3>{ticket.product}</h3>
+                <p>Serial No: {MOCK_PRODUCTS.find(p => p.name === ticket.product)?.serial || 'N/A'}</p>
+              </div>
+            </div>
+            <div className="ticket-detail-row">
+              <div className="ticket-detail-field"><div className="field-label">Category</div><div className="field-value">{ticket.category}</div></div>
+              <div className="ticket-detail-field"><div className="field-label">Priority</div><div className="field-value">{ticket.priority}</div></div>
+            </div>
+            <div className="ticket-detail-field" style={{marginBottom: 20}}>
+              <div className="field-label">Description</div>
+              <div className="field-value">{ticket.description}</div>
+            </div>
+
+            <h4 style={{fontSize: 14, fontWeight: 700, marginBottom: 12}}>Tracking Timeline</h4>
+            <div className="ticket-timeline" ref={timelineRef}>
+              <div className="timeline-line"></div>
+              {ticket.timeline.map((item, i) => (
+                <div key={i} className={`timeline-item ${item.done ? 'active' : ''} ${item.done && !ticket.timeline[i+1]?.done ? 'current' : ''}`}>
+                  <div className="timeline-node">{item.done && <Icon name="check" size={14} color={item.done && !ticket.timeline[i+1]?.done ? '#131414' : 'white'} />}</div>
+                  <div className="timeline-content">
+                    <div className="timeline-title">{item.step}</div>
+                    <div className="timeline-date">{item.date || 'Pending'}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {activeDetailTab === 'timeline' && (
+          <div className="ticket-timeline">
+            {ticket.timeline.map((item, i) => (
+              <div key={i} className={`timeline-item ${item.done ? 'active' : ''} ${item.done && !ticket.timeline[i+1]?.done ? 'current' : ''}`}>
+                <div className="timeline-node">{item.done && <Icon name="check" size={14} color={item.done && !ticket.timeline[i+1]?.done ? '#131414' : 'white'} />}</div>
+                <div className="timeline-content">
+                  <div className="timeline-title">{item.step}</div>
+                  <div className="timeline-date">{item.date || 'Pending'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeDetailTab === 'updates' && (
+          <div>
+            <h4 style={{marginBottom: 16}}>Admin Updates</h4>
+            {ticket.updates.length > 0 ? ticket.updates.map((u, i) => (
+              <div key={i} style={{padding: 16, background: 'var(--bg-primary)', borderRadius: 12, marginBottom: 12}}>
+                <div style={{fontSize: 12, color: 'var(--text-muted)', marginBottom: 4}}>{u.date}</div>
+                <p style={{fontSize: 14, marginBottom: 6}}>{u.text}</p>
+                <span style={{fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)'}}>{u.author}</span>
+              </div>
+            )) : <p style={{color: 'var(--text-muted)', textAlign: 'center', padding: 32}}>No updates yet.</p>}
+          </div>
+        )}
+
+        {activeDetailTab === 'attachments' && (
+          <div style={{textAlign: 'center', padding: 40, color: 'var(--text-muted)'}}>
+            <Icon name="paperclip" size={32} color="#8a8a8a" />
+            <p style={{marginTop: 12}}>No attachments for this ticket.</p>
+          </div>
+        )}
+      </div>
+
+      <div className="ticket-detail-actions">
+        <button className="btn-secondary flex-1" onClick={onChat}><Icon name="message-circle" size={16} /><span>Chat</span></button>
+        <button className="btn-secondary flex-1"><Icon name="alert-triangle" size={16} /><span>Escalate</span></button>
+        <button className="btn-primary btn-danger flex-1"><Icon name="x" size={16} /><span>Cancel Ticket</span></button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FAQS PAGE
+   ═══════════════════════════════════════════════════════════ */
+
+function FAQsPage({ onSelectCategory, onChat, showToast }) {
+  return (
+    <div>
+      <div className="faqs-hero">
+        <div className="faqs-avatar">
+          <svg width="40" height="40" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="#F9C54D"/><circle cx="18" cy="20" r="3" fill="#131414"/><circle cx="30" cy="20" r="3" fill="#131414"/><path d="M16 30c0-4 4-6 8-6s8 2 8 6" stroke="#131414" strokeWidth="2.5" strokeLinecap="round"/></svg>
+          <div className="faqs-avatar-wave"><span></span><span></span><span></span><span></span><span></span></div>
+        </div>
+        <h1>How can we help?</h1>
+        <p>Browse FAQs or chat with our AI assistant for quick solutions.</p>
+      </div>
+      <div className="faqs-search">
+        <span className="search-icon"><Icon name="search" size={18} /></span>
+        <input type="text" placeholder="Search FAQs..." />
+      </div>
+      <div className="faqs-category-grid">
+        {FAQ_CATEGORIES.map((cat, i) => (
+          <div key={cat.slug} className={`faq-category-card animate-in stagger-${i + 1}`} onClick={() => onSelectCategory(cat)}>
+            <div className="faq-category-icon"><Icon name={cat.icon} size={20} /></div>
+            <span className="faq-category-name">{cat.name}</span>
+          </div>
+        ))}
+      </div>
+      <div className="faqs-help-banner">
+        <div className="help-text">
+          <h3>Still need help?</h3>
+          <p>Chat with our AI assistant for personalized support.</p>
+        </div>
+        <button className="btn-primary" onClick={onChat}><Icon name="message-circle" size={16} /><span>Chat With AI</span></button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FAQ CATEGORY VIEW
+   ═══════════════════════════════════════════════════════════ */
+
+function FAQCategoryView({ category, onBack, onChat, showToast }) {
+  const [openId, setOpenId] = useState(null);
+  const articles = FAQ_ARTICLES[category.slug] || [];
+
+  return (
+    <div>
+      <div className="detail-header">
+        <button className="back-btn" onClick={onBack}><Icon name="arrow-left" size={20} /></button>
+        <h1>{category.name}</h1>
+      </div>
+      <div style={{textAlign: 'center', marginBottom: 32}}>
+        <div style={{width: 56, height: 56, margin: '0 auto 12px', borderRadius: 14, background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+          <Icon name={category.icon} size={24} />
+        </div>
+        <p style={{fontSize: 14, color: 'var(--text-secondary)'}}>Find solutions to common {category.name.toLowerCase()} related issues.</p>
+      </div>
+      <div className="faq-list">
+        {articles.map(article => (
+          <div key={article.id} className={`faq-item ${openId === article.id ? 'open' : ''}`}>
+            <button className="faq-question" onClick={() => setOpenId(openId === article.id ? null : article.id)}>
+              {article.q}
+              <span className="faq-arrow"><Icon name="chevron-down" size={18} /></span>
+            </button>
+            {openId === article.id && (
+              <div className="faq-answer">
+                {article.a.split('\n').map((line, i) => {
+                  if (line.startsWith('•')) return <div key={i} style={{display: 'flex', gap: 8, marginBottom: 6, paddingLeft: 8}}><span>•</span><span>{line.substring(2)}</span></div>;
+                  return <p key={i} style={{marginBottom: 6}}>{line}</p>;
+                })}
+                <div className="faq-feedback">
+                  <span>Was this helpful?</span>
+                  <button className="faq-feedback-btn yes" onClick={() => showToast?.('Thanks — glad this helped!', 'success')}><Icon name="thumbs-up" size={14} /> Yes</button>
+                  <button className="faq-feedback-btn no" onClick={onChat}><Icon name="thumbs-down" size={14} /> No</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+        {articles.length === 0 && <div className="empty-state"><p>No articles found for this category yet.</p></div>}
+      </div>
+      <div className="faqs-help-banner" style={{marginTop: 32}}>
+        <div className="help-text">
+          <h3>Can't find what you're looking for?</h3>
+          <p>Ask our AI assistant and get instant help.</p>
+        </div>
+        <button className="btn-primary btn-danger" onClick={onChat}><Icon name="message-circle" size={16} /><span>Ask AI Assistant</span></button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CHAT SUPPORT SCREEN
+   ═══════════════════════════════════════════════════════════ */
+
+function ChatSupportScreen({ onClose, onEndSession }) {
+  const [messages, setMessages] = useState([
+    { role: 'assistant', content: "Hi I'm your LaptopCare AI Assistant.\nHow can I help you today?", time: '9:41 AM' }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const chatEndRef = useRef(null);
+  const quickReplies = ['Check Warranty Status', 'Track My Ticket', 'Network / Wi-Fi Issues', 'Laptop Performance Issues', 'Drivers & Downloads'];
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  const sendMessage = async (text) => {
+    if (!text.trim()) return;
+    const now = new Date();
+    const time = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    setMessages(prev => [...prev, { role: 'user', content: text, time }]);
+    setInput('');
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('supabase_token');
+      const res = await fetch('http://localhost:8000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ message: text })
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: 'assistant', content: data.reply || JSON.stringify(data), time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) }]);
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: "I'm sorry to hear that. Let's troubleshoot this step by step.\n\nFirst, can you confirm your laptop model?", time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="chat-screen">
+      <div className="chat-topbar">
+        <div className="chat-topbar-left">
+          <button className="btn-icon" onClick={onClose}><Icon name="arrow-left" size={20} /></button>
+          <div className="chat-bot-avatar"><svg width="24" height="24" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="#F9C54D"/><circle cx="18" cy="20" r="3" fill="#131414"/><circle cx="30" cy="20" r="3" fill="#131414"/></svg></div>
+          <div className="chat-bot-info">
+            <span className="chat-bot-name">Chat with AI</span>
+            <span className="chat-bot-status">Online</span>
+          </div>
+        </div>
+        <button className="btn-icon" onClick={() => { onEndSession?.(); onClose(); }}><Icon name="x" size={20} /></button>
+      </div>
+      <div className="chat-messages">
+        {messages.map((msg, i) => (
+          <div key={i} className={`chat-bubble ${msg.role}`}>
+            {msg.role === 'assistant' && <div className="bubble-avatar"><svg width="20" height="20" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="#F9C54D"/><circle cx="18" cy="20" r="2" fill="#131414"/><circle cx="30" cy="20" r="2" fill="#131414"/></svg></div>}
+            <div className={`bubble-content ${msg.role}`}>
+              {msg.content.split('\n').map((line, j) => <div key={j}>{line}</div>)}
+              <span className="bubble-time">{msg.time}</span>
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="chat-bubble assistant">
+            <div className="bubble-avatar"><svg width="20" height="20" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="#F9C54D"/></svg></div>
+            <div className="bubble-content assistant typing"><span className="typing-dot"></span><span className="typing-dot"></span><span className="typing-dot"></span></div>
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
+      <div className="chat-quick-replies">
+        {quickReplies.map(qr => (
+          <button key={qr} className="quick-chip" onClick={() => sendMessage(qr)}>{qr}</button>
+        ))}
+      </div>
+      <form className="chat-input-bar" onSubmit={(e) => { e.preventDefault(); sendMessage(input); }}>
+        <button type="button" className="btn-icon"><Icon name="paperclip" size={18} /></button>
+        <input type="text" className="chat-input" placeholder="Type your message..." value={input} onChange={(e) => setInput(e.target.value)} />
+        <button type="submit" className="chat-send-btn" disabled={!input.trim()}><Icon name="send" size={18} /></button>
+      </form>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VOICE SUPPORT SCREEN
+   ═══════════════════════════════════════════════════════════ */
+
+function VoiceSupportScreen({ onClose, onEndSession }) {
+  return (
+    <div className="voice-screen">
+      <div className="voice-screen-header">
+        <button className="btn-icon" onClick={onClose}><Icon name="arrow-left" size={22} /></button>
+        <button className="btn-icon" onClick={onClose}><Icon name="x" size={22} /></button>
+      </div>
+      <h2 className="voice-title">Speak with AI</h2>
+      <div className="voice-mic-area">
+        <div className="voice-mic-circle">
+          <Icon name="mic" size={40} color="#131414" />
+        </div>
+        <div className="voice-status">Listening...</div>
+        <div className="voice-subtitle">How can I help you with your laptop issue today?</div>
+      </div>
+      <div className="voice-features">
+        <div className="voice-feature">
+          <div className="voice-feature-icon"><Icon name="zap" size={20} /></div>
+          <div className="voice-feature-title">Instant Answers</div>
+          <div className="voice-feature-desc">Get quick solutions</div>
+        </div>
+        <div className="voice-feature">
+          <div className="voice-feature-icon"><Icon name="activity" size={20} /></div>
+          <div className="voice-feature-title">Smart Routing</div>
+          <div className="voice-feature-desc">We'll connect you to an expert if needed</div>
+        </div>
+        <div className="voice-feature">
+          <div className="voice-feature-icon"><Icon name="shield" size={20} /></div>
+          <div className="voice-feature-title">Secure</div>
+          <div className="voice-feature-desc">Your data is safe with us</div>
+        </div>
+      </div>
+      <button className="voice-end-btn" onClick={() => { onEndSession?.(); onClose(); }}>
+        <Icon name="phone" size={18} color="white" />
+        End Voice Session
+      </button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   POST-SUPPORT HUB
+   ═══════════════════════════════════════════════════════════ */
+
+function PostSupportHub({ onClose, onRaiseComplaint, onFeedback, onRegisterProduct }) {
+  return (
+    <div className="post-support">
+      <div className="post-support-card">
+        <div className="post-support-icon"><Icon name="check-circle" size={36} color="#22c55e" /></div>
+        <div className="post-support-title">Session Complete</div>
+        <div className="post-support-subtitle">What can I do for you right now?</div>
+        <div className="post-support-actions">
+          <button className="btn-primary full-width" onClick={onRaiseComplaint}><Icon name="ticket" size={18} /> Raise a Complaint</button>
+          <button className="btn-secondary full-width" onClick={onFeedback}><Icon name="star" size={18} /> Provide Feedback</button>
+          <button className="btn-secondary full-width" onClick={onRegisterProduct}><Icon name="laptop" size={18} /> Register a Product</button>
+          <button className="btn-outline-accent full-width" onClick={onClose}><Icon name="home" size={18} /> Back to Home</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FEEDBACK POPUP
+   ═══════════════════════════════════════════════════════════ */
+
+function FeedbackPopup({ onClose, showToast }) {
+  const [rating, setRating] = useState(0);
+  const [hover, setHover] = useState(0);
+
+  const handleSubmit = () => {
+    if (!rating) { showToast?.('Please select a rating', 'error'); return; }
+    showToast?.('Thank you for your feedback!', 'success');
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="feedback-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}><Icon name="x" size={18} /></button>
+        <div className="feedback-icon"><Icon name="check-circle" size={32} color="#22c55e" /></div>
+        <div className="feedback-title">Thank you!</div>
+        <div className="feedback-subtitle">How would you rate your experience?</div>
+        <div className="stars-row">
+          {[1, 2, 3, 4, 5].map(star => (
+            <button key={star} className={`star-btn ${star <= (hover || rating) ? 'filled' : ''}`}
+              onClick={() => setRating(star)} onMouseEnter={() => setHover(star)} onMouseLeave={() => setHover(0)}>
+              <svg width="36" height="36" viewBox="0 0 24 24" fill={star <= (hover || rating) ? '#F9C54D' : 'none'} stroke={star <= (hover || rating) ? '#F9C54D' : '#ccc'} strokeWidth="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </button>
+          ))}
+        </div>
+        <p className="feedback-note">Your feedback helps us improve</p>
+        <button className="btn-primary full-width" onClick={handleSubmit}>Submit Feedback</button>
+      </div>
+    </div>
+  );
+}
+
+function InfoModal({ title, imageSrc, children, onClose }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="info-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}><Icon name="x" size={18} /></button>
+        <div className="info-modal-top">
+          {imageSrc && <img src={imageSrc} alt={title} className="info-modal-img" />}
+          <div>
+            <h3 style={{margin:0}}>{title}</h3>
+          </div>
+        </div>
+        <div className="info-modal-body">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MAIN APP
+   ═══════════════════════════════════════════════════════════ */
+
 function App() {
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [activeSection, setActiveSection] = useState('dashboard');
+  // Auth state
+  // Auto-login locally for developer preview (keeps behavior unchanged in prod)
+  const [loggedIn, setLoggedIn] = useState(() => {
+    try {
+      return window && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    } catch (e) {
+      return false;
+    }
+  });
   const [currentPage, setCurrentPage] = useState('login');
   const [loading, setLoading] = useState(false);
-  const [loginError, setLoginError] = useState('');
-  const [signupError, setSignupError] = useState('');
+
+  // Navigation
+  const [activeTab, setActiveTab] = useState('home');
+  const [currentView, setCurrentView] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [selectedFAQCategory, setSelectedFAQCategory] = useState(null);
+
+  // Overlays
+  const [showSupportHub, setShowSupportHub] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showVoice, setShowVoice] = useState(false);
+  const [showPostSupport, setShowPostSupport] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [showDrawer, setShowDrawer] = useState(false);
+  const [showProfilePage, setShowProfilePage] = useState(false);
+  const [showSettingsPage, setShowSettingsPage] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showTelecomModal, setShowTelecomModal] = useState(false);
+  const [showTOSModal, setShowTOSModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+
+  // Toast
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const toastTimeoutRef = useRef(null);
-  const mainRef = useRef(null);
 
   const showToast = useCallback((message, type = 'success') => {
-    if (toastTimeoutRef.current) {
-      clearTimeout(toastTimeoutRef.current);
-    }
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToast({ visible: true, message, type });
-    toastTimeoutRef.current = setTimeout(() => {
-      setToast((prev) => ({ ...prev, visible: false }));
-      toastTimeoutRef.current = null;
-    }, 4200);
+    toastTimeoutRef.current = setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 4200);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (toastTimeoutRef.current) {
-        clearTimeout(toastTimeoutRef.current);
-      }
-    };
-  }, []);
+  useEffect(() => () => { if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current); }, []);
 
-  const devFeatureToast = useCallback(() => showToast('This feature is under development.', 'warning'), [showToast]);
+  // Tab change resets view
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setCurrentView(null);
+    setSelectedProduct(null);
+    setSelectedTicket(null);
+    setSelectedFAQCategory(null);
+  };
 
+  // Supabase session check
   useEffect(() => {
-    const checkSession = async () => {
-      if (!supabase) return;
+    if (!supabase) return;
+    (async () => {
       try {
         const { data } = await supabase.auth.getSession();
-        if (data?.session) {
-          localStorage.setItem('supabase_token', data.session.access_token);
-          setLoggedIn(true);
-        }
-      } catch (e) {
-        console.error('Session check error:', e);
-      }
-    };
-    checkSession();
+        if (data?.session) { localStorage.setItem('supabase_token', data.session.access_token); setLoggedIn(true); }
+      } catch (e) { console.error('Session check error:', e); }
+    })();
   }, []);
 
   const handleLogin = async ({ email, password }) => {
-    if (!supabase) {
-      const msg = 'Supabase not configured. Check environment variables.';
-      setLoginError(msg);
-      showToast(msg, 'warning');
-      return false;
-    }
+    if (!supabase) { showToast('Supabase not configured — demo mode active', 'warning'); setLoggedIn(true); return true; }
     setLoading(true);
-    setLoginError('');
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        const msg = error.message === 'Invalid login credentials'
-          ? 'Invalid email or password'
-          : error.message || 'Login failed';
-        setLoginError(msg);
-        showToast(msg, 'error');
-        console.error('Login error', error);
-        return false;
-      }
-      const token = data?.session?.access_token;
-      if (token) {
-        localStorage.setItem('supabase_token', token);
-        setLoggedIn(true);
-        setLoginError('');
-        showToast('Successfully signed in', 'success');
-        return true;
-      }
-      const msg = 'No session token received';
-      setLoginError(msg);
-      showToast(msg, 'error');
-      return false;
-    } catch (e) {
-      const msg = 'An unexpected error occurred';
-      setLoginError(msg);
-      showToast(msg, 'error');
-      console.error('Login exception:', e);
-      return false;
-    } finally {
-      setLoading(false);
-    }
+      if (error) { showToast(error.message || 'Login failed', 'error'); return false; }
+      if (data?.session?.access_token) { localStorage.setItem('supabase_token', data.session.access_token); setLoggedIn(true); showToast('Welcome back!', 'success'); return true; }
+      showToast('No session received', 'error'); return false;
+    } catch { showToast('An error occurred', 'error'); return false; }
+    finally { setLoading(false); }
   };
 
   const handleSignup = async ({ email, password }) => {
-    if (!supabase) {
-      const msg = 'Supabase not configured. Check environment variables.';
-      setSignupError(msg);
-      showToast(msg, 'warning');
-      return false;
-    }
+    if (!supabase) { showToast('Supabase not configured', 'warning'); return false; }
     setLoading(true);
-    setSignupError('');
     try {
       const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        const msg = error.message || 'Signup failed';
-        setSignupError(msg);
-        showToast(msg, 'error');
-        console.error('Signup error', error);
-        return false;
-      }
-      if (data?.user) {
-        showToast('Account created successfully', 'success');
-        return true;
-      }
-      const msg = 'Signup succeeded but no account data was returned';
-      setSignupError(msg);
-      showToast(msg, 'warning');
+      if (error) { showToast(error.message || 'Signup failed', 'error'); return false; }
+      if (data?.user) { showToast('Account created!', 'success'); return true; }
       return false;
-    } catch (e) {
-      const msg = 'An unexpected error occurred';
-      setSignupError(msg);
-      showToast(msg, 'error');
-      console.error('Signup exception:', e);
-      return false;
-    } finally {
-      setLoading(false);
-    }
+    } catch { showToast('An error occurred', 'error'); return false; }
+    finally { setLoading(false); }
   };
 
   const handleLogout = async () => {
-    try {
-      if (supabase) await supabase.auth.signOut();
-    } catch (e) {
-      console.error('Logout error:', e);
-    }
+    try { if (supabase) await supabase.auth.signOut(); } catch (e) { console.error(e); }
     localStorage.removeItem('supabase_token');
     setLoggedIn(false);
     setCurrentPage('login');
+    setActiveTab('home');
+    setCurrentView(null);
   };
 
-  const handleNavigate = useCallback((sectionId) => {
-    setActiveSection(sectionId);
-    const el = document.getElementById(sectionId);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, []);
+  const openProfilePage = () => {
+    setShowProfilePage(true);
+    setShowSettingsPage(false);
+    setActiveTab('home');
+    setCurrentView(null);
+  };
 
-  useEffect(() => {
-    if (!loggedIn) return;
-    const sections = NAV_ITEMS.map(n => document.getElementById(n.id)).filter(Boolean);
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id);
-          }
-        });
-      },
-      { rootMargin: '-80px 0px -50% 0px', threshold: 0.1 }
-    );
-    sections.forEach(s => observer.observe(s));
-    return () => observer.disconnect();
-  }, [loggedIn]);
+  const openSettingsPage = () => {
+    setShowSettingsPage(true);
+    setShowProfilePage(false);
+    setActiveTab('home');
+    setCurrentView(null);
+  };
 
+  const handleEndSession = () => {
+    setShowChat(false);
+    setShowVoice(false);
+    setShowPostSupport(true);
+  };
+
+  // Not logged in
   if (!loggedIn) {
-    if (currentPage === 'login') {
-      return (
-        <>
-          <LoginPage onLogin={handleLogin} onSwitchToSignup={() => setCurrentPage('signup')} loading={loading} showToast={showToast} />
-          <Toast visible={toast.visible} message={toast.message} type={toast.type} />
-        </>
-      );
-    } else {
-      return (
-        <>
-          <SignupPage onSignup={handleSignup} onSwitchToLogin={() => { setCurrentPage('login'); setSignupError(''); }} loading={loading} showToast={showToast} />
-          <Toast visible={toast.visible} message={toast.message} type={toast.type} />
-        </>
-      );
-    }
+    return (
+      <>
+        {currentPage === 'login'
+          ? <LoginPage onLogin={handleLogin} onSwitchToSignup={() => setCurrentPage('signup')} loading={loading} showToast={showToast} />
+          : <SignupPage onSignup={handleSignup} onSwitchToLogin={() => setCurrentPage('login')} loading={loading} showToast={showToast} />
+        }
+        <Toast visible={toast.visible} message={toast.message} type={toast.type} />
+      </>
+    );
   }
+
+  // Render current view content
+  const renderContent = () => {
+    if (showProfilePage) return <SettingsProfilePage onClose={() => setShowProfilePage(false)} />;
+    if (showSettingsPage) return <SettingsPage onClose={() => setShowSettingsPage(false)} />;
+    if (activeTab === 'home' && !currentView) {
+      return <HomePage onNavigate={handleTabChange} />;
+    }
+    if (activeTab === 'products') {
+      if (currentView === 'warranty-claim' && selectedProduct) {
+        return <WarrantyClaimWizard product={selectedProduct} onBack={() => setCurrentView('detail')} onComplete={(id) => { setCurrentView(null); setActiveTab('tickets'); showToast('Ticket ' + id + ' created!', 'success'); }} showToast={showToast} />;
+      }
+      if (currentView === 'renew-amc' && selectedProduct) {
+        return <RenewAMCWizard product={selectedProduct} onBack={() => setCurrentView('detail')} showToast={showToast} />;
+      }
+      if (currentView === 'detail' && selectedProduct) {
+        return <ProductDetailView product={selectedProduct} onBack={() => { setCurrentView(null); setSelectedProduct(null); }} onWarrantyClaim={() => setCurrentView('warranty-claim')} onRenewAMC={() => setCurrentView('renew-amc')} />;
+      }
+      return <MyProductsPage onSelectProduct={(p) => { setSelectedProduct(p); setCurrentView('detail'); }} />;
+    }
+    if (activeTab === 'tickets') {
+      if (currentView === 'detail' && selectedTicket) {
+        return <TicketDetailView ticket={selectedTicket} onBack={() => { setCurrentView(null); setSelectedTicket(null); }} onChat={() => setShowChat(true)} showToast={showToast} />;
+      }
+      return <TicketsPage onSelectTicket={(t) => { setSelectedTicket(t); setCurrentView('detail'); }} />;
+    }
+    if (activeTab === 'faqs') {
+      if (currentView === 'category' && selectedFAQCategory) {
+        return <FAQCategoryView category={selectedFAQCategory} onBack={() => { setCurrentView(null); setSelectedFAQCategory(null); }} onChat={() => setShowChat(true)} showToast={showToast} />;
+      }
+      return <FAQsPage onSelectCategory={(cat) => { setSelectedFAQCategory(cat); setCurrentView('category'); }} onChat={() => setShowChat(true)} showToast={showToast} />;
+    }
+    return null;
+  };
+
+  const pageKey = `${activeTab}-${currentView || 'root'}-${selectedProduct?.id || selectedTicket?.id || selectedFAQCategory?.slug || ''}`;
 
   return (
     <div className="app-layout">
-      <Sidebar activeSection={activeSection} onNavigate={handleNavigate} />
-      <div className="main-area">
-        <Header activeSection={activeSection} onLogout={handleLogout} />
-        <main className="content" ref={mainRef}>
-          <DashboardHero />
-          <MyProducts onDevClick={devFeatureToast} />
-          <WarrantyAMC onDevClick={devFeatureToast} />
-          <RaiseComplaint />
-          <MyTickets />
-          <AIChat />
-          <Feedback showToast={showToast} />
-          <footer className="app-footer">
-            <p>© 2026 Lenovo Support Portal. All rights reserved.</p>
-          </footer>
-        </main>
-      </div>
+      <TopAppBar onMenuClick={() => setShowDrawer(true)} onLogout={handleLogout} onOpenProfile={openProfilePage} onOpenSettings={openSettingsPage} />
+      <main className="main-content">
+        <div key={pageKey} className="page-wrap fade-up">
+          {renderContent()}
+        </div>
+      </main>
+      <FloatingDock activeTab={activeTab} onTabChange={handleTabChange} />
+      <SupportFAB onClick={() => setShowSupportHub(true)} />
+
+      {/* Modals & Overlays */}
+      {showSupportHub && <SupportHubModal onClose={() => setShowSupportHub(false)} onChat={() => { setShowSupportHub(false); setShowChat(true); }} onVoice={() => { setShowSupportHub(false); setShowVoice(true); }} />}
+      {showChat && <ChatSupportScreen onClose={() => setShowChat(false)} onEndSession={handleEndSession} />}
+      {showVoice && <VoiceSupportScreen onClose={() => setShowVoice(false)} onEndSession={handleEndSession} />}
+      {showPostSupport && <PostSupportHub onClose={() => { setShowPostSupport(false); setActiveTab('home'); setCurrentView(null); }} onRaiseComplaint={() => { setShowPostSupport(false); setActiveTab('tickets'); }} onFeedback={() => { setShowPostSupport(false); setShowFeedback(true); }} onRegisterProduct={() => { setShowPostSupport(false); setActiveTab('products'); }} />}
+      {showFeedback && <FeedbackPopup onClose={() => setShowFeedback(false)} showToast={showToast} />}
+      {showDrawer && <HamburgerDrawer
+        onClose={() => setShowDrawer(false)}
+        onOpenLanguage={() => { setShowDrawer(false); setShowLanguageModal(true); }}
+        onOpenAboutAI={() => { setShowDrawer(false); setShowAboutModal(true); }}
+        onOpenTelecom={() => { setShowDrawer(false); setShowTelecomModal(true); }}
+        onOpenTOS={() => { setShowDrawer(false); setShowTOSModal(true); }}
+        onOpenPrivacy={() => { setShowDrawer(false); setShowPrivacyModal(true); }}
+      />}
+      {showLanguageModal && (
+        <InfoModal title="Language / हिंदी" imageSrc="/images/lang.svg" onClose={() => setShowLanguageModal(false)}>
+          <div style={{display:'flex', gap:12, flexDirection:'column'}}>
+            <button className="btn-primary" onClick={() => { setShowLanguageModal(false); showToast?.('Language set to English', 'success'); }}>English</button>
+            <button className="btn-secondary" onClick={() => { setShowLanguageModal(false); showToast?.('Language set to Hindi', 'success'); }}>हिंदी</button>
+          </div>
+        </InfoModal>
+      )}
+      {showAboutModal && (
+        <InfoModal title="About Our AI" imageSrc="/images/ai.svg" onClose={() => setShowAboutModal(false)}>
+          <p style={{color:'var(--text-secondary)'}}>Our AI assistant provides guided troubleshooting, ticket routing, and contextual help using secure, vendor-approved models. It can suggest diagnostics, collect logs, and help escalate to human engineers when needed.</p>
+        </InfoModal>
+      )}
+      {showTelecomModal && (
+        <InfoModal title="Telecom Solutions (B2B)" imageSrc="/images/telecom.svg" onClose={() => setShowTelecomModal(false)}>
+          <ul style={{marginTop:8}}>
+            <li>Enterprise device management</li>
+            <li>Bulk warranty & AMC plans</li>
+            <li>Priority SLAs and on-site support</li>
+          </ul>
+        </InfoModal>
+      )}
+      {showTOSModal && (
+        <InfoModal title="Terms of Service" imageSrc="/images/terms.svg" onClose={() => setShowTOSModal(false)}>
+          <p style={{color:'var(--text-secondary)'}}>These terms govern the use of LaptopCare services. For full details, please review the complete Terms of Service on our website.</p>
+        </InfoModal>
+      )}
+      {showPrivacyModal && (
+        <InfoModal title="Privacy Policy" imageSrc="/images/privacy.svg" onClose={() => setShowPrivacyModal(false)}>
+          <p style={{color:'var(--text-secondary)'}}>We protect your personal data and process it according to applicable laws. Contact support for data export or deletion requests.</p>
+        </InfoModal>
+      )}
       <Toast visible={toast.visible} message={toast.message} type={toast.type} />
     </div>
   );
 }
 
 export default App;
+
+/* ═══════════════════════════════════════════════════════════
+   SETTINGS / PROFILE PAGES
+   ═══════════════════════════════════════════════════════════ */
+
+function SettingsPage({ onClose }) {
+  const [language, setLanguage] = useState('English');
+  const [notifications, setNotifications] = useState(true);
+  const [voiceSupport, setVoiceSupport] = useState(true);
+  const [emailUpdates, setEmailUpdates] = useState(true);
+
+  return (
+    <div>
+      <div className="detail-header">
+        <button className="back-btn" onClick={onClose}><Icon name="arrow-left" size={20} /></button>
+        <h1>Settings</h1>
+      </div>
+
+      <div className="settings-grid">
+        <div className="settings-card">
+          <h3>Account Preferences</h3>
+          <div className="form-group">
+            <label className="form-label">Language</label>
+            <select className="form-input" value={language} onChange={(e) => setLanguage(e.target.value)}>
+              <option>English</option>
+              <option>Hindi</option>
+              <option>Spanish</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="checkbox-label"><input type="checkbox" checked={notifications} onChange={(e) => setNotifications(e.target.checked)} /><span className="checkbox-custom"></span><span>Notifications</span></label>
+          </div>
+          <div className="form-group">
+            <label className="checkbox-label"><input type="checkbox" checked={voiceSupport} onChange={(e) => setVoiceSupport(e.target.checked)} /><span className="checkbox-custom"></span><span>Voice Support</span></label>
+          </div>
+          <div className="form-group">
+            <label className="checkbox-label"><input type="checkbox" checked={emailUpdates} onChange={(e) => setEmailUpdates(e.target.checked)} /><span className="checkbox-custom"></span><span>Email Updates</span></label>
+          </div>
+        </div>
+
+        <div className="settings-card">
+          <h3>Security</h3>
+          <div className="form-group">
+            <label className="form-label">Change Password</label>
+            <button className="btn-secondary">Change Password</button>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Two-factor Authentication</label>
+            <button className="btn-secondary">Manage 2FA</button>
+          </div>
+        </div>
+
+        <div className="settings-card">
+          <h3>Support</h3>
+          <div className="form-group">
+            <button className="btn-primary">Contact Support</button>
+          </div>
+          <div className="form-group">
+            <button className="btn-outline-accent">Export Account Data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsProfilePage({ onClose }) {
+  return (
+    <div>
+      <div className="detail-header">
+        <button className="back-btn" onClick={onClose}><Icon name="arrow-left" size={20} /></button>
+        <h1>My Profile</h1>
+      </div>
+      <div className="profile-card">
+        <div className="profile-header">
+          <div className="profile-avatar"><Icon name="user" size={48} /></div>
+          <div>
+            <h2>Alex Johnson</h2>
+            <p className="text-muted">alex@email.com</p>
+          </div>
+        </div>
+        <div style={{marginTop:16}}>
+          <button className="btn-primary">Edit Profile</button>
+          <button className="btn-secondary" style={{marginLeft:12}}>Change Password</button>
+        </div>
+      </div>
+    </div>
+  );
+}
