@@ -36,10 +36,21 @@ def _extract_groq_reply(completion):
         return getattr(message, 'content', None) or getattr(message, 'text', None) or str(message)
     return getattr(first, 'text', None) or str(first)
 
-origins = [
+# Default allowed origins for local dev and known deployments
+default_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://ai-customer-service-alpha.vercel.app",
+    "https://ai-customer-service-vs5z.vercel.app",
 ]
+
+# Allow overriding via environment variable `ALLOWED_ORIGINS` (comma-separated)
+env_origins = os.environ.get('ALLOWED_ORIGINS') or os.environ.get('VITE_ALLOWED_ORIGINS') or ''
+env_list = [o.strip() for o in env_origins.split(',') if o.strip()]
+
+origins = env_list + default_origins if env_list else default_origins
 
 app.add_middleware(
     CORSMiddleware,
