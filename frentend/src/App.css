@@ -860,14 +860,13 @@ img {
   z-index: 90;
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 6px 8px;
+  gap: 6px;
+  padding: 8px 12px;
   background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border-accent);
-  border-radius: 16px;
-  overflow: hidden;
+  border-radius: var(--radius-full);
   box-shadow: var(--shadow-dock);
   transition: all var(--transition-base);
 }
@@ -881,9 +880,7 @@ img {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  width: 60px;
-  height: 60px;
-  padding: 0;
+  padding: 10px 20px;
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -891,7 +888,7 @@ img {
   cursor: pointer;
   transition: all var(--transition-spring);
   position: relative;
-  
+  min-width: 80px;
 }
 
 .dock-tab:hover {
@@ -928,9 +925,6 @@ img {
   font-weight: 600;
   letter-spacing: 0.1px;
   transition: all var(--transition-base);
-}
-.active-indicator {
-  position: absolute;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1227,14 +1221,6 @@ img {
 
 .home-greeting {
   margin-bottom: 8px;
-}
-.main-content {
-  max-width: 1440px;
-}
-
-.home-hero {
-  padding-left: 0px;
-  padding-right: 0px;
 }
 
 .home-greeting h1 {
@@ -3332,8 +3318,8 @@ img {
   }
 
   .dock-tab {
-  min-width: 60px;
-    padding: 0;
+    min-width: 60px;
+    padding: 8px 14px;
   }
 
   .dock-tab-label {
