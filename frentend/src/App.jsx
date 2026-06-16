@@ -203,6 +203,7 @@ function Icon({ name, size = 20, color = 'currentColor', fill = 'none' }) {
     'chevron-right': <polyline points="9 18 15 12 9 6"/>,
     'chevron-down': <polyline points="6 9 12 15 18 9"/>,
     'check': <polyline points="20 6 9 17 4 12"/>,
+    'plus-circle': <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></>,
     'check-circle': <><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>,
     'shield': <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>,
     'send': <><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>,
@@ -630,17 +631,51 @@ function HomePage({ onNavigate }) {
           </div>
           <h2 className="home-section-title">Popular Actions</h2>
           <div className="home-actions-grid">
-            {[
-              { icon: 'shield', title: 'Check Warranty', desc: 'Check your warranty status', tab: 'products' },
-              { icon: 'ticket', title: 'Track Complaint', desc: 'Track your existing ticket', tab: 'tickets' },
-            ].map((action, i) => (
-              <div key={i} className={`home-action-card animate-in stagger-${i + 1}`} onClick={() => action.tab && onNavigate(action.tab)}>
-                <div className="home-action-icon"><Icon name={action.icon} size={24} /></div>
-                <div className="home-action-title">{action.title}</div>
-                <div className="home-action-desc">{action.desc}</div>
-              </div>
-            ))}
-          </div>
+  {[
+    {
+      icon: 'shield',
+      title: 'Check Warranty',
+      desc: 'Check your warranty status',
+      tab: 'products'
+    },
+    {
+      icon: 'ticket',
+      title: 'Track Complaint',
+      desc: 'Track your existing ticket',
+      tab: 'tickets'
+    },
+    {
+      icon: 'plus-circle',
+      title: 'Create Ticket',
+      desc: 'Raise a new support request',
+      tab: 'create-ticket'
+    },
+    {
+      icon: 'phone',
+      title: 'AI Call Support',
+      desc: '24/7 Telephony customer support',
+      tab: 'telephony'
+    }
+  ].map((action, i) => (
+    <div
+      key={i}
+      className={`home-action-card animate-in stagger-${i + 1}`}
+      onClick={() => action.tab && onNavigate(action.tab)}
+    >
+      <div className="home-action-icon">
+        <Icon name={action.icon} size={24} />
+      </div>
+
+      <div className="home-action-title">
+        {action.title}
+      </div>
+
+      <div className="home-action-desc">
+        {action.desc}
+      </div>
+    </div>
+  ))}
+</div>
         </div>
       </div>
     </div>
