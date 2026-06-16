@@ -586,7 +586,7 @@ function RaiseComplaint({ showToast }) {
     (async () => {
       const token = localStorage.getItem('supabase_token')
       try {
-        const res = await fetch('http://localhost:8000/api/tickets', {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/tickets`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ product: form.product, category: form.category, priority: form.priority, description: form.description })
@@ -851,9 +851,9 @@ function AIChat() {
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
-    try {
+      try {
       const token = localStorage.getItem('supabase_token')
-      const res = await fetch('http://localhost:8000/api/chat', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ message: text })
