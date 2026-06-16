@@ -249,6 +249,7 @@ function Icon({ name, size = 20, color = 'currentColor', fill = 'none' }) {
    SUPABASE
    ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 let supabase = null;
@@ -1324,7 +1325,7 @@ function ChatSupportScreen({ onClose, onEndSession }) {
     setLoading(true);
     try {
       const token = localStorage.getItem('supabase_token');
-      const res = await fetch('http://localhost:8000/api/chat', {
+      const res = await fetch(`${apiUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ message: text })
