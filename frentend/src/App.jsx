@@ -1278,6 +1278,8 @@ function ChatSupportScreen({ onClose, onEndSession }) {
   const chatEndRef = useRef(null);
   const quickReplies = ['Check Warranty Status', 'Track My Ticket', 'Network / Wi-Fi Issues', 'Laptop Performance Issues', 'Drivers & Downloads'];
 
+  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const sendMessage = async (text) => {
@@ -1289,7 +1291,7 @@ function ChatSupportScreen({ onClose, onEndSession }) {
     setLoading(true);
     try {
       const token = localStorage.getItem('supabase_token');
-      const res = await fetch('http://localhost:8000/api/chat', {
+      const res = await fetch(`${apiBaseUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ message: text })
