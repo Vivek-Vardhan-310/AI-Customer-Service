@@ -1,0 +1,5 @@
+export const MOCK_PRODUCTS = [
+  { id: 'p1', name: 'ThinkPad X1 Carbon', serial: 'PF31ABK2', model: 'TP-2023-X1', image: 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400', warranty: 'Active', warrantyDays: 210, warrantyTotal: 365, amc: 'Active', amcDays: 54, amcTotal: 365, status: 'Active', purchaseDate: 'Nov 15, 2025' },
+  { id: 'p2', name: 'IdeaPad Slim 5', serial: 'MP5L8MH2', model: 'IP-2024-S5', image: 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400', warranty: 'Expiring Soon', warrantyDays: 28, warrantyTotal: 365, amc: 'Inactive', amcDays: 0, amcTotal: 365, status: 'Expiring Soon', purchaseDate: 'Mar 10, 2025' },
+  { id: 'p3', name: 'Legion 5 Pro', serial: 'SL80PX120', model: 'LG-2024-5P', image: 'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400', warranty: 'Active', warrantyDays: 340, warrantyTotal: 730, amc: 'Active', amcDays: 340, amcTotal: 365, status: 'Active', purchaseDate: 'Jan 5, 2026' },
+];

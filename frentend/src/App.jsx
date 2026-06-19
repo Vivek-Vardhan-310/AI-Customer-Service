@@ -1,253 +1,19 @@
-﻿import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
+﻿﻿﻿import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
 import { createClient } from '@supabase/supabase-js'
 import './App.css';
 import './animations.css';
 import { useInView, useRafCount } from './hooks/animations';
+import VoiceChat from './components/VoiceChat';
+import { MOCK_PRODUCTS } from './data/products';
+import { MOCK_TICKETS } from './data/tickets';
+import { FAQ_CATEGORIES, FAQ_ARTICLES } from './data/faq';
+import { ISSUE_CATEGORIES } from './data/issues';
+import Icon from './components/ui/Icon';
 
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   MOCK DATA
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
-const MOCK_PRODUCTS = [
-  { id: 'p1', name: 'ThinkPad X1 Carbon', serial: 'PF31ABK2', model: 'TP-2023-X1', image: 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400', warranty: 'Active', warrantyDays: 210, warrantyTotal: 365, amc: 'Active', amcDays: 54, amcTotal: 365, status: 'Active', purchaseDate: 'Nov 15, 2025' },
-  { id: 'p2', name: 'IdeaPad Slim 5', serial: 'MP5L8MH2', model: 'IP-2024-S5', image: 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400', warranty: 'Expiring Soon', warrantyDays: 28, warrantyTotal: 365, amc: 'Inactive', amcDays: 0, amcTotal: 365, status: 'Expiring Soon', purchaseDate: 'Mar 10, 2025' },
-  { id: 'p3', name: 'Legion 5 Pro', serial: 'SL80PX120', model: 'LG-2024-5P', image: 'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400', warranty: 'Active', warrantyDays: 340, warrantyTotal: 730, amc: 'Active', amcDays: 340, amcTotal: 365, status: 'Active', purchaseDate: 'Jan 5, 2026' },
-];
 
-const MOCK_TICKETS = [
-  { id: 'CS-8992', product: 'ThinkPad X1 Carbon', title: 'ThinkPad Keyboard Backlight Issue', category: 'Keyboard', status: 'In Progress', priority: 'Medium', created: '13 Jun 2026', updated: '14 Jun 2026', description: 'Keyboard backlight stopped working after the latest software update.', timeline: [
-    { step: 'Complaint Raised', date: '12 Jun 2026 ┬╖ 10:00 AM', done: true },
-    { step: 'Assigned to Engineer', date: '12 Jun 2026 ┬╖ 11:15 AM', done: true },
-    { step: 'Diagnosis Started', date: '13 Jun 2026 ┬╖ 09:40 AM', done: true },
-    { step: 'In Progress', date: '14 Jun 2026 ┬╖ 02:20 PM', done: true },
-    { step: 'Resolved', date: '', done: false },
-    { step: 'Closed', date: '', done: false },
-  ], updates: [
-    { date: '14 Jun 2026 ┬╖ 12:03 PM', text: 'Our engineer is currently working on this issue. Driver conflict identified. Fix in progress.', author: 'Rajesh K., Support Engineer' },
-    { date: '13 Jun 2026 ┬╖ 09:40 AM', text: 'Issue has been assigned to our technical team for diagnosis.', author: 'System' },
-    { date: '12 Jun 2026 ┬╖ 11:15 AM', text: 'Ticket has been assigned to Rajesh K.', author: 'System' },
-  ]},
-  { id: 'CS-9011', product: 'Legion 5 Pro', title: 'System Overheating During Games', category: 'Hardware', status: 'Open', priority: 'High', created: '14 Jun 2026', updated: '14 Jun 2026', description: 'System heats up excessively during gaming sessions, causing throttling.', timeline: [
-    { step: 'Complaint Raised', date: '14 Jun 2026 ┬╖ 08:30 AM', done: true },
-    { step: 'Assigned to Engineer', date: '', done: false },
-    { step: 'Diagnosis Started', date: '', done: false },
-    { step: 'In Progress', date: '', done: false },
-    { step: 'Resolved', date: '', done: false },
-    { step: 'Closed', date: '', done: false },
-  ], updates: [] },
-  { id: 'CS-8721', product: 'ThinkPad X1 Carbon', title: 'Battery Not Charging After Update', category: 'Battery', status: 'Resolved', priority: 'Medium', created: '01 Jun 2026', updated: '10 Jun 2026', description: 'Battery stopped charging after latest BIOS update. Adapter works fine with other devices.', timeline: [
-    { step: 'Complaint Raised', date: '01 Jun 2026', done: true },
-    { step: 'Assigned to Engineer', date: '01 Jun 2026', done: true },
-    { step: 'Diagnosis Started', date: '02 Jun 2026', done: true },
-    { step: 'In Progress', date: '03 Jun 2026', done: true },
-    { step: 'Resolved', date: '10 Jun 2026', done: true },
-    { step: 'Closed', date: '', done: false },
-  ], updates: [] },
-  { id: 'CS-7960', product: 'IdeaPad Slim 5', title: 'WiFi Connectivity Issues', category: 'Network', status: 'Closed', priority: 'Low', created: '30 May 2026', updated: '05 Jun 2026', description: 'WiFi keeps disconnecting intermittently.', timeline: [
-    { step: 'Complaint Raised', date: '30 May 2026', done: true },
-    { step: 'Assigned to Engineer', date: '30 May 2026', done: true },
-    { step: 'Diagnosis Started', date: '31 May 2026', done: true },
-    { step: 'In Progress', date: '01 Jun 2026', done: true },
-    { step: 'Resolved', date: '04 Jun 2026', done: true },
-    { step: 'Closed', date: '05 Jun 2026', done: true },
-  ], updates: [] },
-];
 
-const FAQ_CATEGORIES = [
-  { slug: 'hardware', name: 'Hardware Problems', icon: 'monitor' },
-  { slug: 'battery', name: 'Battery & Power', icon: 'battery' },
-  { slug: 'software', name: 'Software & OS', icon: 'code' },
-  { slug: 'network', name: 'Network & Connectivity', icon: 'wifi' },
-  { slug: 'warranty', name: 'Warranty & Services', icon: 'shield' },
-  { slug: 'drivers', name: 'Drivers & Downloads', icon: 'download' },
-  { slug: 'connectivity', name: 'Connectivity (Wi-Fi, BT)', icon: 'bluetooth' },
-  { slug: 'accessories', name: 'Accessories & Peripherals', icon: 'headphones' },
-];
 
-const FAQ_ARTICLES = {
-  battery: [
-    {
-      id: 'faq1',
-      q: 'Why is my battery draining faster than expected?',
-      a: `Modern laptops can show faster drain for many reasons. Follow these steps to diagnose and improve battery life:\n\nΓÇó Check power profile: Set Windows to Balanced or Power Saver (Settings ΓåÆ System ΓåÆ Power & battery).\nΓÇó Identify heavy apps: Open Task Manager ΓåÆ Processes and sort by "Power usage". Close or uninstall apps that consume excessive resources.\nΓÇó Screen brightness: Reduce brightness or enable adaptive brightness.\nΓÇó Background sync & peripherals: Disable background sync, disconnect unused USB devices, and turn off Bluetooth when not required.\nΓÇó Drivers & BIOS: Update display, chipset, and power management drivers from the official support site; update BIOS if available.\nΓÇó Battery health: Use manufacturer tools (Lenovo Vantage, ASUS MyASUS) to view charge cycles and health. Consider battery replacement if health is low.\n\nIf the steps above don't help, collect battery reports (powercfg /batteryreport) and share with support when raising a ticket.`
-    },
-    {
-      id: 'faq2',
-      q: 'My laptop does not charge ΓÇö what should I check?',
-      a: `Quick checklist to determine why charging fails:\n\nΓÇó Power source: Try a different wall socket and remove any power strips.\nΓÇó Adapter & cable: Inspect for frayed cables or bent pins; test with a known-good compatible adapter.\nΓÇó Charging port: Check for debris in the DC jack; gently clean and reseat the plug.\nΓÇó Battery indicator: Does the LED blink or remain off? Note the pattern ΓÇö useful for diagnostics.\nΓÇó Battery status in OS: Check Windows Settings ΓåÆ System ΓåÆ Power & battery or use powercfg /batteryreport to view state.\nΓÇó BIOS/firmware: Boot into BIOS and check battery/adapter status; update BIOS if vendor recommends.\nΓÇó Diagnostics: Run the vendor hardware diagnostics (Lenovo Diagnostics/UEFI tools).\n\nIf hardware checks fail, avoid repeated attempts to charge ΓÇö raise a service request with serial number, photos of the adapter/port, and the battery report.`
-    },
-    {
-      id: 'faq3',
-      q: 'How can I improve long-term battery life and longevity?',
-      a: `Best practices to keep your battery healthy over time:\n\nΓÇó Avoid constant 100% charging: For daily use, keep the battery between ~20%ΓÇô80% where possible.\nΓÇó Use recommended chargers: Always use the manufacturer-specified adapter.\nΓÇó Keep firmware updated: BIOS and power driver updates often include battery-management improvements.\nΓÇó Avoid extreme temperatures: Do not operate or store the laptop in very hot (>35┬░C) or very cold (<0┬░C) conditions.\nΓÇó Storage: If storing long-term, charge to ~50% and power off.\nΓÇó Calibration: Occasionally perform a full charge-discharge cycle to help the battery gauge remain accurate.\n\nFor enterprise or heavy users, consider vendor power-management utilities that allow charging thresholds and preservation modes.`
-    },
-  ],
-
-  hardware: [
-    {
-      id: 'faq6',
-      q: 'Keyboard or certain keys are not responding ΓÇö what should I do?',
-      a: `Step-by-step troubleshooting for keyboard issues:\n\nΓÇó Reboot & test: Restart the laptop and test the keyboard in BIOS (if supported) or an external USB keyboard.\nΓÇó Check for Fn lock / hotkeys: Ensure Fn Lock isn't enabled; toggle Fn combinations to restore normal behavior.\nΓÇó Drivers: Open Device Manager ΓåÆ Keyboards ΓåÆ Update driver. Uninstall and reboot to reinstall if needed.\nΓÇó Software conflicts: Boot into Safe Mode; if keyboard works there, a third-party app may be blocking input.\nΓÇó Physical damage: Look for liquid spills, crumbs, or stuck keys. Clean carefully or seek service.\nΓÇó External keyboard: If an external keyboard works, the issue is likely hardware-related.\n\nIf hardware replacement is required, note your serial number and warranty status before contacting support.`
-    },
-    {
-      id: 'faq7',
-      q: 'My screen is flickering or shows artifacts ΓÇö how can I fix it?',
-      a: `Follow these diagnostics to isolate display flicker/artifact problems:\n\nΓÇó Isolate app vs system: Does flicker happen only with one app? Update or reinstall that app.\nΓÇó Refresh rate & resolution: Right-click Desktop ΓåÆ Display settings ΓåÆ Advanced display ΓåÆ set the recommended resolution and refresh rate.\nΓÇó GPU drivers: Update graphics drivers from the vendor (Intel/AMD/NVIDIA) or your laptop support page.\nΓÇó Hardware acceleration: Disable hardware acceleration in browsers or specific apps to test.\nΓÇó External monitor test: Connect an external display ΓÇö if external is fine, issue may be laptop panel or cable.\nΓÇó BIOS & firmware: Update BIOS and embedded controller (EC) firmware.\n\nIf the screen has persistent artifacts across BIOS and external displays also fail, it may indicate GPU or cable failure ΓÇö open a support ticket with reproduction steps and sample photos/video.`
-    },
-    {
-      id: 'faq8',
-      q: 'Touchpad stopped working ΓÇö what can I try?',
-      a: `Touchpad troubleshooting checklist:\n\nΓÇó Toggle touchpad on/off: Look for a touchpad toggle (Fn + function key) or Settings ΓåÆ Bluetooth & devices ΓåÆ Touchpad.\nΓÇó Driver updates: Update touchpad drivers (Synaptics/ELAN) from Device Manager or vendor site.\nΓÇó External mouse conflict: Unplug external mouse and test.\nΓÇó BIOS check: Ensure touchpad is enabled in BIOS settings.\nΓÇó Sensitivity settings: Reset touchpad sensitivity to default.\nΓÇó Hardware issue: If buttons or gestures fail but physical clicking works, the touch sensor may be faulty.\n\nIf none of the above work, collect system logs and contact support for hardware service.`
-    },
-  ],
-
-  software: [
-    {
-      id: 'faq9',
-      q: 'My system is slow ΓÇö how do I diagnose performance issues?',
-          a: `A systematic approach to improving system performance:\n\nΓÇó Task Manager analysis: Press Ctrl+Shift+Esc ΓåÆ Processes/Performance to find CPU, memory, disk, or GPU bottlenecks.\nΓÇó Background apps & startup: Disable unnecessary startup apps (Task Manager ΓåÆ Startup).\nΓÇó Disk health & space: Run chkdsk /f and free up disk space. Consider moving large files to external storage or cloud.\nΓÇó RAM & storage: Low RAM or a slow HDD can slow systems ΓÇö consider adding RAM or upgrading to an SSD.\nΓÇó Malware scan: Run a full scan with Windows Defender or another reputable anti-malware tool.\nΓÇó Software updates: Keep OS and drivers current; sometimes old drivers cause regressions.\nΓÇó Reset browser: If browsing is slow, clear cache or reset the browser.\n\nIf performance is inconsistent, create a timeline of when slowness occurs and which apps are active, then escalate to support with logs.`
-    },
-    {
-      id: 'faq10',
-      q: 'I see a Blue Screen (BSOD) ΓÇö what information should I collect?',
-          a: `Blue Screens can be caused by hardware or drivers. Gather these details before contacting support:\n\nΓÇó Error code & message: Copy the STOP code (e.g., IRQL_NOT_LESS_OR_EQUAL) and any driver file mentioned.\nΓÇó Minidump files: Enable Minidump in System Properties ΓåÆ Advanced ΓåÆ Startup and Recovery and attach the files from C:\Windows\Minidump.\nΓÇó Recent changes: Note any recent driver installations, Windows updates, or hardware changes.\nΓÇó Reproduce steps: If the BSOD occurs during a specific action, document the steps to reproduce.\n\nBasic troubleshooting: update drivers, run memory diagnostics (mdsched.exe), and check disk health. If unstable, collect logs and open a support ticket.`
-    },
-  ],
-
-  network: [
-    {
-      id: 'faq11',
-      q: 'WiΓÇæFi keeps disconnecting ΓÇö how can I stabilize the connection?',
-          a: `Troubleshoot intermittent WiΓÇæFi disconnects with these steps:\n\nΓÇó Router & ISP: Restart your router and modem; verify if other devices have the same issue.\nΓÇó Signal & placement: Move closer to the router, avoid obstructions and sources of interference (microwaves, cordless phones).\nΓÇó Band selection: Try switching between 2.4GHz and 5GHz networks; 5GHz is faster but has shorter range.\nΓÇó Power settings: In Device Manager ΓåÆ Network adapters ΓåÆ Properties ΓåÆ Power Management, uncheck "Allow the computer to turn off this device".\nΓÇó Drivers & firmware: Update WiΓÇæFi adapter drivers and router firmware.\nΓÇó IP & DNS: Run ipconfig /release && ipconfig /renew && ipconfig /flushdns to reset network stack.\nΓÇó Advanced: Set a static channel on the router to avoid automatic channel switching that causes brief drops.\n\nIf connectivity issues persist, capture wireless logs and open a support ticket with SSID, adapter model, and approximate time(s) of disconnects.`
-    },
-    {
-      id: 'faq12',
-      q: 'Bluetooth paired but device won\'t connect or dropouts occur',
-      a: `Bluetooth troubleshooting steps:\n\nΓÇó Remove & re-pair: Remove the device from Bluetooth settings and pair again.\nΓÇó Close interfering apps: Some apps may hold audio devices; close any app using audio.\nΓÇó Drivers: Update Bluetooth and audio drivers.\nΓÇó Power management: Disable Bluetooth power saving in Device Manager.\nΓÇó Firmware: Update headphones/headset firmware (if applicable).\n\nFor persistent issues, test the Bluetooth device with another phone/computer to rule out the accessory.`
-    },
-  ],
-
-  warranty: [
-    {
-      id: 'faq20',
-      q: 'How do I check my warranty status?',
-      a: `To check warranty status:\n\nΓÇó Registered account: Sign in to your manufacturer account (e.g., Lenovo ID) and view registered devices.\nΓÇó Serial lookup: Use the service portal and enter your device serial number or SNID.\nΓÇó Purchase proof: Keep invoices or order numbers ready ΓÇö these accelerate claims.\n\nIf your device is not registered, register it with the serial number to get faster service and AMC reminders.`
-    },
-    {
-      id: 'faq21',
-      q: 'What does warranty cover vs AMC (Annual Maintenance Contract)?',
-      a: `Typical coverage differences (may vary by vendor):\n\nΓÇó Manufacturer warranty: Covers manufacturing defects and hardware failures under normal use for the warranty period. Does not cover accidental damage or unauthorized modifications.\nΓÇó AMC / Extended warranty: Paid plans that extend coverage, may include on-site service, and sometimes accidental damage protection (check plan details).\n\nAlways read the plan terms ΓÇö what is excluded and the response time SLA.`
-    },
-    {
-      id: 'faq22',
-      q: 'How do I raise a warranty claim?',
-      a: `Raising a warranty claim ΓÇö recommended steps:\n\nΓÇó Collect info: Device serial number, proof of purchase, description of the issue, photos/videos, and any error messages.\nΓÇó Contact support: Use the support portal or phone number on the website to create a ticket.\nΓÇó Diagnostics: Follow remote troubleshooting steps provided by support; be ready to run logs or diagnostic tools.\nΓÇó Service appointment: If hardware service is required, schedule an on-site visit or drop-off as instructed.\n\nKeep your ticket ID and follow up if updated timelines are needed.`
-    },
-  ],
-
-  drivers: [
-    {
-      id: 'faq30',
-      q: 'Where can I safely download drivers for my laptop?',
-      a: `Best practices for driver downloads:\n\nΓÇó Official support site: Always use the laptop manufacturer's support page and enter your serial/model to get tested drivers.\nΓÇó Vendor GPU drivers: For GPUs, use Intel/AMD/NVIDIA official drivers if recommended by the vendor page.\nΓÇó Avoid third-party driver sites: Untrusted sources may contain incorrect or malicious drivers.\n\nIf you are unsure which driver to install, prefer vendor-provided utility programs (Lenovo Vantage) that recommend and apply the correct driver set.`
-    },
-    {
-      id: 'faq31',
-      q: 'I updated a driver and now the system is unstable ΓÇö how do I revert?',
-      a: `How to roll back a problematic driver:\n\nΓÇó Device Manager rollback: Right-click the device ΓåÆ Properties ΓåÆ Driver ΓåÆ Roll Back Driver (if available).\nΓÇó Uninstall & reinstall: Use Device Manager to uninstall the device (check "Delete driver software"), then reboot and let Windows reinstall a stable driver.\nΓÇó System restore: If you have a System Restore point, revert to a previous state.\nΓÇó Safe Mode: Boot to Safe Mode to perform removals if normal mode is unstable.\n\nIf stability issues persist, capture event logs and contact support for a guided rollback.`
-    },
-  ],
-
-  accessories: [
-    {
-      id: 'faq40',
-      q: 'My charger or adapter is not powering the laptop reliably ΓÇö what should I check?',
-      a: `Charger troubleshooting checklist:\n\nΓÇó Check rating: Ensure the replacement adapter matches required voltage and wattage. Undersized adapters may not charge under load.\nΓÇó Cable & connector: Inspect for damage and test with another compatible adapter.\nΓÇó Intermittent charging: Wiggle the connector gently ΓÇö if charging cuts in/out, port repair may be required.\nΓÇó Battery vs adapter: Remove battery (if removable) and test adapter-only boot (where supported) to isolate the issue.\n\nIf the adapter is faulty or pins are damaged, replace with an official or certified adapter.`
-    },
-    {
-      id: 'faq41',
-      q: 'External monitor not detected ΓÇö how can I fix this?',
-      a: `Steps to diagnose external display issues:\n\nΓÇó Cable & port: Try a different cable and port (HDMI/DP/USB-C). Test the monitor with another device to rule out the monitor.\nΓÇó Input source: Ensure the external monitor input is set to the correct source.\nΓÇó Display settings: Windows ΓåÆ Display settings ΓåÆ Detect; set "Multiple displays" to Extend or Duplicate as needed.\nΓÇó GPU drivers: Update graphics drivers and check display adapter settings.\nΓÇó Adapter dongles: If using a passive adapter, test with an active adapter if the laptop requires DisplayPort alt-mode.\n\nIf multiple monitors fail across ports, collect logs and contact support ΓÇö include GPU model and adapter type.`
-    },
-  ],
-};
-
-const ISSUE_CATEGORIES = [
-  { id: 'battery', label: 'Battery', icon: 'battery' },
-  { id: 'screen', label: 'Screen', icon: 'monitor' },
-  { id: 'keyboard', label: 'Keyboard', icon: 'keyboard' },
-  { id: 'motherboard', label: 'Motherboard', icon: 'cpu' },
-  { id: 'software', label: 'Software', icon: 'code' },
-  { id: 'other', label: 'Other', icon: 'help-circle' },
-];
-
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   SVG ICON COMPONENT
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
-
-function Icon({ name, size = 20, color = 'currentColor', fill = 'none' }) {
-  const paths = {
-    'home': <><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
-    'laptop': <><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="2" y1="20" x2="22" y2="20"/></>,
-    'monitor': <><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></>,
-    'ticket': <><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></>,
-    'help-circle': <><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></>,
-    'headphones': <><path d="M3 18v-6a9 9 0 0118 0v6"/><path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z"/></>,
-    'mic': <><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></>,
-    'message-circle': <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>,
-    'search': <><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
-    'bell': <><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>,
-    'menu': <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>,
-    'x': <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
-    'arrow-left': <><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></>,
-    'chevron-right': <polyline points="9 18 15 12 9 6"/>,
-    'chevron-down': <polyline points="6 9 12 15 18 9"/>,
-    'check': <polyline points="20 6 9 17 4 12"/>,
-    'plus-circle': <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></>,
-    'check-circle': <><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>,
-    'shield': <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>,
-    'send': <><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>,
-    'phone': <><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></>,
-    'star': <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>,
-    'user': <><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
-    'settings': <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></>,
-    'log-out': <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
-    'eye': <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>,
-    'upload': <><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>,
-    'download': <><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>,
-    'battery': <><rect x="1" y="6" width="18" height="12" rx="2" ry="2"/><line x1="23" y1="13" x2="23" y2="11"/></>,
-    'wifi': <><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></>,
-    'bluetooth': <><polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"/></>,
-    'cpu': <><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></>,
-    'code': <><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></>,
-    'keyboard': <><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M7 16h10"/></>,
-    'paperclip': <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>,
-    'image': <><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>,
-    'globe': <><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>,
-    'info': <><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></>,
-    'file-text': <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></>,
-    'lock': <><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></>,
-    'zap': <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>,
-    'alert-triangle': <><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>,
-    'thumbs-up': <><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></>,
-    'thumbs-down': <><path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3zm7-13h2.67A2.31 2.31 0 0122 4v7a2.31 2.31 0 01-2.33 2H17"/></>,
-    'mail': <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>,
-    'plus': <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
-    'more-vertical': <><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></>,
-    'clock': <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
-    'activity': <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>,
-  };
-
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      {paths[name] || null}
-    </svg>
-  );
-}
-
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   SUPABASE
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
 const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'development'
   ? 'http://localhost:8000'
@@ -262,9 +28,6 @@ if (supabaseUrl && supabaseKey) {
 }
 export { supabase };
 
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   TOAST
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
 function Toast({ message, visible, type = 'success' }) {
   return (
@@ -275,9 +38,6 @@ function Toast({ message, visible, type = 'success' }) {
   );
 }
 
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   LOGIN PAGE
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
 function LoginPage({ onLogin, onSwitchToSignup, loading, showToast }) {
   const [tab, setTab] = useState('customer');
@@ -348,9 +108,6 @@ function LoginPage({ onLogin, onSwitchToSignup, loading, showToast }) {
   );
 }
 
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   SIGNUP PAGE
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
 function SignupPage({ onSignup, onSwitchToLogin, loading, showToast }) {
   const [email, setEmail] = useState('');
@@ -417,9 +174,6 @@ function SignupPage({ onSignup, onSwitchToLogin, loading, showToast }) {
   );
 }
 
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   TOP APP BAR
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
 function TopAppBar({ onMenuClick, onLogout, onOpenProfile, onOpenSettings }) {
   const [showNotif, setShowNotif] = useState(false);
@@ -488,9 +242,6 @@ function TopAppBar({ onMenuClick, onLogout, onOpenProfile, onOpenSettings }) {
   );
 }
 
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   FLOATING BOTTOM DOCK
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
 function FloatingDock({ activeTab, onTabChange }) {
   const tabs = [
@@ -534,9 +285,6 @@ function FloatingDock({ activeTab, onTabChange }) {
   );
 }
 
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   SUPPORT FAB + MODAL
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
 function SupportFAB({ onClick }) {
   return (
@@ -576,9 +324,6 @@ function SupportHubModal({ onClose, onChat, onVoice }) {
   );
 }
 
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   HAMBURGER DRAWER
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
 function HamburgerDrawer({ onClose, onOpenLanguage, onOpenAboutAI, onOpenTelecom, onOpenTOS, onOpenPrivacy }) {
   const items = [
@@ -614,9 +359,6 @@ function HamburgerDrawer({ onClose, onOpenLanguage, onOpenAboutAI, onOpenTelecom
   );
 }
 
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   HOME PAGE
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
 function HomePage({ onNavigate }) {
   return (
@@ -685,9 +427,6 @@ function HomePage({ onNavigate }) {
   );
 }
 
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   MY PRODUCTS PAGE
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
 function MyProductsPage({ onSelectProduct }) {
   return (
@@ -721,9 +460,6 @@ function MyProductsPage({ onSelectProduct }) {
   );
 }
 
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   PRODUCT DETAIL VIEW
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
 function ProductDetailView({ product, onBack, onWarrantyClaim, onRenewAMC }) {
   const warrantyPercent = Math.round((1 - product.warrantyDays / product.warrantyTotal) * 100);
@@ -796,9 +532,6 @@ function ProductDetailView({ product, onBack, onWarrantyClaim, onRenewAMC }) {
   );
 }
 
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-   WARRANTY CLAIM WIZARD
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
 function WarrantyClaimWizard({ product, onBack, onComplete, showToast }) {
   const [step, setStep] = useState(1);
@@ -1391,6 +1124,8 @@ function ChatSupportScreen({ onClose, onEndSession }) {
    ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
 
 function VoiceSupportScreen({ onClose, onEndSession }) {
+  const token = localStorage.getItem('supabase_token');
+
   return (
     <div className="voice-screen">
       <div className="voice-screen-header">
@@ -1402,8 +1137,9 @@ function VoiceSupportScreen({ onClose, onEndSession }) {
         <div className="voice-mic-circle">
           <Icon name="mic" size={40} color="#131414" />
         </div>
-        <div className="voice-status">Listening...</div>
+        <div className="voice-status">Voice assistant</div>
         <div className="voice-subtitle">How can I help you with your laptop issue today?</div>
+        <VoiceChat token={token} onSessionComplete={onEndSession} />
       </div>
       <div className="voice-features">
         <div className="voice-feature">

@@ -23,3 +23,13 @@ class FeedbackCreate(BaseModel):
     ticket_id: Optional[str]
     rating: int = Field(..., ge=1, le=5)
     comment: Optional[str]
+
+class VoiceChatRequest(BaseModel):
+    audio_base64: str
+    mime_type: Optional[str] = "audio/webm"
+
+class VoiceChatResponse(BaseModel):
+    transcript: str
+    reply_text: str
+    audio_base64: Optional[str] = None
+    audio_mime_type: Optional[str] = None
