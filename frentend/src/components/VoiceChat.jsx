@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import * as ort from 'onnxruntime-web';
+
+ort.env.wasm.wasmPaths = '/assets/';
+ort.env.wasm.numThreads = 1;
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -500,15 +504,15 @@ const VoiceChat = ({ token, onSessionComplete }) => {
       }
 
       if (audioCtx) {
-        try { audioCtx.close(); } catch (e) {}
+        try { audioCtx.close(); } catch (e) { }
       }
 
       // Clean up local instantiations if they haven't been assigned to refs yet
       if (vad) {
-        try { vad.destroy(); } catch (e) {}
+        try { vad.destroy(); } catch (e) { }
       }
       if (ws) {
-        try { ws.close(); } catch (e) {}
+        try { ws.close(); } catch (e) { }
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
