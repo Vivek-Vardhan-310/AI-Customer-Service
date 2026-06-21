@@ -1,4 +1,4 @@
-﻿﻿﻿import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
+import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
 import { createClient } from '@supabase/supabase-js'
 import './App.css';
 import './animations.css';
@@ -942,7 +942,6 @@ function TicketDetailView({ ticket, onBack, onChat, showToast }) {
     </div>
   );
 }
-
 /* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
    FAQS PAGE
    ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
@@ -1062,7 +1061,7 @@ function ChatSupportScreen({ onClose, onEndSession }) {
       const token = localStorage.getItem('supabase_token');
       const res = await fetch(`${apiUrl}/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
         body: JSON.stringify({ message: text })
       });
       const data = await res.json();
@@ -1119,9 +1118,9 @@ function ChatSupportScreen({ onClose, onEndSession }) {
   );
 }
 
-/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+/* ═══════════════════════════════════════════════════════════════
    VOICE SUPPORT SCREEN
-   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
+   ═══════════════════════════════════════════════════════════════ */
 
 function VoiceSupportScreen({ onClose, onEndSession }) {
   const token = localStorage.getItem('supabase_token');
@@ -1132,13 +1131,8 @@ function VoiceSupportScreen({ onClose, onEndSession }) {
         <button className="btn-icon" onClick={onClose}><Icon name="arrow-left" size={22} /></button>
         <button className="btn-icon" onClick={onClose}><Icon name="x" size={22} /></button>
       </div>
-      <h2 className="voice-title">Speak with AI</h2>
+      <h2 className="voice-title">Voice Assistant</h2>
       <div className="voice-mic-area">
-        <div className="voice-mic-circle">
-          <Icon name="mic" size={40} color="#131414" />
-        </div>
-        <div className="voice-status">Voice assistant</div>
-        <div className="voice-subtitle">How can I help you with your laptop issue today?</div>
         <VoiceChat token={token} onSessionComplete={onEndSession} />
       </div>
       <div className="voice-features">

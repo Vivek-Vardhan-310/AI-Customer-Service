@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from datetime import datetime
@@ -11,7 +11,12 @@ import uuid
 import os
 import asyncio
 import base64
+import json
+import logging
+import tempfile
 from io import BytesIO
+
+logger = logging.getLogger("voice_ws")
 
 
 app = FastAPI(title="AI Customer Service - Backend")
@@ -215,6 +220,247 @@ async def voice_chat(req: VoiceChatRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Voice chat processing failed: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  REAL-TIME VOICE WEBSOCKET — Full-duplex STT → LLM (streaming) → TTS
+#  Supports barge-in via "abort" messages from the client.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# System prompt for the voice assistant
+VOICE_SYSTEM_PROMPT = (
+    "You are a friendly, concise voice assistant for LaptopCare customer support. "
+    "Keep responses short (1-3 sentences) since you are speaking out loud. "
+    "Be helpful with laptop issues, warranty questions, and troubleshooting. "
+    "Don't use markdown formatting, bullet points, or special characters — speak naturally."
+)
+
+
+def _split_sentences(text: str) -> list[str]:
+    """Split text at sentence boundaries (.!?) for incremental TTS.
+    Returns list of complete sentences found so far, plus any remaining fragment."""
+    sentences = []
+    current = []
+    for char in text:
+        current.append(char)
+        if char in '.!?':
+            sentence = ''.join(current).strip()
+            if sentence:
+                sentences.append(sentence)
+            current = []
+    remainder = ''.join(current).strip()
+    return sentences, remainder
+
+
+@app.websocket("/ws/voice")
+async def voice_websocket(websocket: WebSocket):
+    """Full-duplex voice chat WebSocket endpoint.
+
+    Protocol:
+      Client → Server:
+        - Binary frame: raw audio blob (webm/opus) for STT
+        - Text frame:   JSON {"type": "abort"} to cancel current response
+
+      Server → Client:
+        - {"type": "transcript", "text": "..."}       — STT result
+        - {"type": "tts_text", "text": "...", "idx": N, "final": bool} — sentence for client-side TTS
+        - {"type": "llm_token", "token": "..."}       — individual LLM token (for live transcript)
+        - {"type": "no_speech"}                        — STT returned empty
+        - {"type": "turn_complete"}                     — full response done
+        - {"type": "error", "message": "..."}           — error occurred
+    """
+    await websocket.accept()
+    logger.info("Voice WebSocket connected")
+
+    # Per-connection conversation history for multi-turn context
+    conversation_history: list[dict] = [
+        {"role": "system", "content": VOICE_SYSTEM_PROMPT}
+    ]
+
+    # Abort flag — set to True when client sends "abort" to cancel in-progress response
+    abort_flag = False
+
+    async def process_audio(audio_bytes: bytes):
+        """Pipeline: audio bytes → STT → streaming LLM → sentence-buffered TTS text."""
+        nonlocal abort_flag
+        abort_flag = False
+
+        if groq_client is None:
+            await websocket.send_json({"type": "error", "message": "Groq client not initialized"})
+            return
+
+        # ── Step 1: Speech-to-Text via Groq Whisper ──────────────────────
+        try:
+            audio_file = BytesIO(audio_bytes)
+            audio_file.name = "audio.webm"  # Groq needs a filename with extension
+
+            # Run STT in a thread pool to avoid blocking the event loop
+            transcript_result = await asyncio.to_thread(
+                groq_client.audio.transcriptions.create,
+                file=audio_file,
+                model="whisper-large-v3-turbo",
+            )
+            user_text = (transcript_result.text or "").strip()
+            logger.info(f"STT result: '{user_text}'")
+        except Exception as e:
+            logger.error(f"STT failed: {e}")
+            await websocket.send_json({"type": "error", "message": f"STT failed: {e}"})
+            return
+
+        # ── Step 2: Validate transcript — skip if empty or too short ─────
+        if not user_text or len(user_text) < 2:
+            await websocket.send_json({"type": "no_speech"})
+            return
+
+        # Send transcript back to client for display
+        await websocket.send_json({"type": "transcript", "text": user_text})
+
+        # Add user message to conversation history
+        conversation_history.append({"role": "user", "content": user_text})
+
+        # ── Step 3: Streaming LLM response ───────────────────────────────
+        try:
+            stream = await asyncio.to_thread(
+                groq_client.chat.completions.create,
+                model=os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
+                messages=conversation_history,
+                temperature=float(os.environ.get("GROQ_TEMPERATURE", "0.7")),
+                max_completion_tokens=int(os.environ.get("GROQ_MAX_COMPLETION_TOKENS", "512")),
+                top_p=float(os.environ.get("GROQ_TOP_P", "1")),
+                stream=True,
+            )
+        except Exception as e:
+            logger.error(f"LLM request failed: {e}")
+            await websocket.send_json({"type": "error", "message": f"LLM failed: {e}"})
+            return
+
+        # ── Step 4: Stream tokens, buffer into sentences, send for TTS ───
+        full_response = ""
+        buffer = ""
+        sentence_idx = 0
+
+        try:
+            for chunk in stream:
+                # Check abort flag — client interrupted (barge-in)
+                if abort_flag:
+                    logger.info("Abort flag set — stopping LLM stream")
+                    break
+
+                delta = chunk.choices[0].delta if chunk.choices else None
+                if not delta or not delta.content:
+                    continue
+
+                token = delta.content
+                full_response += token
+                buffer += token
+
+                # Send individual token for live transcript display on client
+                try:
+                    await websocket.send_json({"type": "llm_token", "token": token})
+                except Exception:
+                    break
+
+                # Check if buffer contains complete sentences
+                sentences, remainder = _split_sentences(buffer)
+                if sentences:
+                    for sentence in sentences:
+                        if abort_flag:
+                            break
+                        # Send each complete sentence for client-side TTS
+                        try:
+                            await websocket.send_json({
+                                "type": "tts_text",
+                                "text": sentence,
+                                "idx": sentence_idx,
+                                "final": False
+                            })
+                            sentence_idx += 1
+                        except Exception:
+                            break
+                    buffer = remainder
+
+        except Exception as e:
+            logger.error(f"LLM streaming error: {e}")
+
+        # ── Step 5: Flush any remaining buffer as the final sentence ─────
+        if buffer.strip() and not abort_flag:
+            try:
+                await websocket.send_json({
+                    "type": "tts_text",
+                    "text": buffer.strip(),
+                    "idx": sentence_idx,
+                    "final": True
+                })
+            except Exception:
+                pass
+
+        # Add assistant response to conversation history
+        if full_response:
+            conversation_history.append({"role": "assistant", "content": full_response})
+            # Keep history manageable — last 20 messages + system prompt
+            if len(conversation_history) > 21:
+                conversation_history[1:] = conversation_history[-20:]
+
+        # Signal turn complete
+        if not abort_flag:
+            try:
+                await websocket.send_json({"type": "turn_complete"})
+            except Exception:
+                pass
+
+    # ── Main receive loop ────────────────────────────────────────────────
+    current_task: asyncio.Task | None = None
+
+    try:
+        while True:
+            message = await websocket.receive()
+
+            if message.get("type") == "websocket.disconnect":
+                break
+
+            # Binary frame = audio data for STT
+            if "bytes" in message and message["bytes"]:
+                audio_data = message["bytes"]
+                logger.info(f"Received audio: {len(audio_data)} bytes")
+
+                # Cancel any in-progress response before starting new one
+                if current_task and not current_task.done():
+                    abort_flag = True
+                    current_task.cancel()
+                    try:
+                        await current_task
+                    except (asyncio.CancelledError, Exception):
+                        pass
+
+                # Process new audio in a task so we can still receive abort messages
+                current_task = asyncio.create_task(process_audio(audio_data))
+
+            # Text frame = JSON control message
+            elif "text" in message and message["text"]:
+                try:
+                    data = json.loads(message["text"])
+                except json.JSONDecodeError:
+                    continue
+
+                if data.get("type") == "abort":
+                    # BARGE-IN: client started speaking while AI was responding
+                    logger.info("Abort received — barge-in")
+                    abort_flag = True
+                    if current_task and not current_task.done():
+                        current_task.cancel()
+                        try:
+                            await current_task
+                        except (asyncio.CancelledError, Exception):
+                            pass
+
+    except WebSocketDisconnect:
+        logger.info("Voice WebSocket disconnected")
+    except Exception as e:
+        logger.error(f"Voice WebSocket error: {e}")
+    finally:
+        if current_task and not current_task.done():
+            current_task.cancel()
+        logger.info("Voice WebSocket session ended")
 
 
 @app.post("/api/feedback", status_code=201)
