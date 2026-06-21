@@ -355,7 +355,8 @@ const VoiceChat = ({ token, onSessionComplete }) => {
         // Configure ONNX Runtime to load WebAssembly files from the local public directory
         const ort = await import('onnxruntime-web');
         if (!isCurrent) return;
-        ort.env.wasm.wasmPaths = '/';
+        ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.0/dist/';
+        ort.env.wasm.numThreads = 1;
 
         // Polyfill require globally for CommonJS modules bundled by Vite/Rolldown
         if (typeof window !== 'undefined' && !window.require) {
