@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as ort from 'onnxruntime-web';
 
-ort.env.wasm.wasmPaths = '/assets/';
+ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.0/dist/';
 ort.env.wasm.numThreads = 1;
 
 /**
