@@ -17,7 +17,7 @@ import Icon from './components/ui/Icon';
 
 const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'development'
   ? 'http://localhost:8000'
-  : 'https://ai-customer-service-alpha.vercel.app');
+  : 'https://ai-customer-service-users.onrender.com');
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 let supabase = null;
@@ -61,7 +61,7 @@ function LoginPage({ onLogin, onSwitchToSignup, loading, showToast }) {
         <div className="login-overlay">
           <div className="login-brand">
             <div className="login-logo">
-              <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#F9C54D"/><path d="M12 28V12h4v12h8v4H12z" fill="#131414"/></svg>
+              <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#F9C54D" /><path d="M12 28V12h4v12h8v4H12z" fill="#131414" /></svg>
             </div>
             <h1 className="login-title">LaptopCare<span className="accent-dot">.</span></h1>
             <p className="login-subtitle">Customer Support Portal</p>
@@ -133,11 +133,11 @@ function SignupPage({ onSignup, onSwitchToLogin, loading, showToast }) {
           <div className="login-overlay"><div className="login-brand"><h1 className="login-title">LaptopCare<span className="accent-dot">.</span></h1></div></div>
         </div>
         <div className="login-right">
-          <div className="login-card" style={{textAlign:'center'}}>
+          <div className="login-card" style={{ textAlign: 'center' }}>
             <div className="success-icon-wrap"><Icon name="check-circle" size={48} color="#22c55e" /></div>
             <h2 className="login-card-title">Account Created!</h2>
             <p className="login-card-subtitle">You can now sign in.</p>
-            <button className="btn-primary full-width" onClick={onSwitchToLogin} style={{marginTop:24}}>Return to Sign In</button>
+            <button className="btn-primary full-width" onClick={onSwitchToLogin} style={{ marginTop: 24 }}>Return to Sign In</button>
           </div>
         </div>
       </div>
@@ -150,7 +150,7 @@ function SignupPage({ onSignup, onSwitchToLogin, loading, showToast }) {
         <img src="https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=1200" alt="Workspace" className="login-bg-image" />
         <div className="login-overlay">
           <div className="login-brand">
-            <div className="login-logo"><svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#F9C54D"/><path d="M12 28V12h4v12h8v4H12z" fill="#131414"/></svg></div>
+            <div className="login-logo"><svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#F9C54D" /><path d="M12 28V12h4v12h8v4H12z" fill="#131414" /></svg></div>
             <h1 className="login-title">LaptopCare<span className="accent-dot">.</span></h1>
             <p className="login-subtitle">Customer Support Portal</p>
           </div>
@@ -196,7 +196,7 @@ function TopAppBar({ onMenuClick, onLogout, onOpenProfile, onOpenSettings }) {
       <div className="topbar-left">
         <button className="btn-icon" onClick={onMenuClick}><Icon name="menu" size={22} /></button>
         <div className="topbar-brand">
-          <div className="topbar-brand-icon"><svg width="20" height="20" viewBox="0 0 40 40" fill="none"><path d="M12 28V12h4v12h8v4H12z" fill="#131414"/></svg></div>
+          <div className="topbar-brand-icon"><svg width="20" height="20" viewBox="0 0 40 40" fill="none"><path d="M12 28V12h4v12h8v4H12z" fill="#131414" /></svg></div>
           <div>
             <span className="topbar-brand-name">LaptopCare</span>
             <span className="topbar-brand-sub"> Support</span>
@@ -376,51 +376,51 @@ function HomePage({ onNavigate }) {
           </div>
           <h2 className="home-section-title">Popular Actions</h2>
           <div className="home-actions-grid">
-  {[
-    {
-      icon: 'shield',
-      title: 'Check Warranty',
-      desc: 'Check your warranty status',
-      tab: 'products'
-    },
-    {
-      icon: 'ticket',
-      title: 'Track Complaint',
-      desc: 'Track your existing ticket',
-      tab: 'tickets'
-    },
-    {
-      icon: 'plus-circle',
-      title: 'Create Ticket',
-      desc: 'Raise a new support request',
-      tab: 'create-ticket'
-    },
-    {
-      icon: 'phone',
-      title: 'AI Call Support',
-      desc: '24/7 Telephony customer support',
-      tab: 'telephony'
-    }
-  ].map((action, i) => (
-    <div
-      key={i}
-      className={`home-action-card animate-in stagger-${i + 1}`}
-      onClick={() => action.tab && onNavigate(action.tab)}
-    >
-      <div className="home-action-icon">
-        <Icon name={action.icon} size={24} />
-      </div>
+            {[
+              {
+                icon: 'shield',
+                title: 'Check Warranty',
+                desc: 'Check your warranty status',
+                tab: 'products'
+              },
+              {
+                icon: 'ticket',
+                title: 'Track Complaint',
+                desc: 'Track your existing ticket',
+                tab: 'tickets'
+              },
+              {
+                icon: 'plus-circle',
+                title: 'Create Ticket',
+                desc: 'Raise a new support request',
+                tab: 'create-ticket'
+              },
+              {
+                icon: 'phone',
+                title: 'AI Call Support',
+                desc: '24/7 Telephony customer support',
+                tab: 'telephony'
+              }
+            ].map((action, i) => (
+              <div
+                key={i}
+                className={`home-action-card animate-in stagger-${i + 1}`}
+                onClick={() => action.tab && onNavigate(action.tab)}
+              >
+                <div className="home-action-icon">
+                  <Icon name={action.icon} size={24} />
+                </div>
 
-      <div className="home-action-title">
-        {action.title}
-      </div>
+                <div className="home-action-title">
+                  {action.title}
+                </div>
 
-      <div className="home-action-desc">
-        {action.desc}
-      </div>
-    </div>
-  ))}
-</div>
+                <div className="home-action-desc">
+                  {action.desc}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -498,13 +498,13 @@ function ProductDetailView({ product, onBack, onWarrantyClaim, onRenewAMC }) {
           <div className="product-detail-name">{product.name}</div>
           <div className="product-detail-serial">Serial No: {product.serial}</div>
           <span className={`badge ${product.status === 'Active' ? 'badge-green' : 'badge-amber'}`}>{product.status}</span>
-          <div className="product-status-cards" style={{marginTop: 16}}>
+          <div className="product-status-cards" style={{ marginTop: 16 }}>
             <div className="product-status-card">
               <div className="status-label">Warranty</div>
               <span className={`badge ${product.warranty === 'Active' ? 'badge-green' : 'badge-amber'}`}>{product.warranty}</span>
               <div className="status-days">{warrantyCount} days remaining</div>
               <div className="progress-wrap" ref={progressRef}>
-                <div className="progress-bar"><div className={`progress-fill ${product.warrantyDays > 60 ? 'green' : 'amber'}`} style={{transform: progressInView ? `scaleX(${Math.max(0, Math.min(1, warrantyPercent / 100))})` : 'scaleX(0)'}}></div></div>
+                <div className="progress-bar"><div className={`progress-fill ${product.warrantyDays > 60 ? 'green' : 'amber'}`} style={{ transform: progressInView ? `scaleX(${Math.max(0, Math.min(1, warrantyPercent / 100))})` : 'scaleX(0)' }}></div></div>
               </div>
             </div>
             <div className="product-status-card">
@@ -513,7 +513,7 @@ function ProductDetailView({ product, onBack, onWarrantyClaim, onRenewAMC }) {
               <div className="status-days">{amcCount > 0 ? `${amcCount} days remaining` : 'Not active'}</div>
               {product.amcDays > 0 && (
                 <div className="progress-wrap">
-                  <div className="progress-bar"><div className={`progress-fill ${product.amcDays > 60 ? 'green' : 'amber'}`} style={{transform: progressInView ? `scaleX(${Math.max(0, Math.min(1, amcPercent / 100))})` : 'scaleX(0)'}}></div></div>
+                  <div className="progress-bar"><div className={`progress-fill ${product.amcDays > 60 ? 'green' : 'amber'}`} style={{ transform: progressInView ? `scaleX(${Math.max(0, Math.min(1, amcPercent / 100))})` : 'scaleX(0)' }}></div></div>
                 </div>
               )}
             </div>
@@ -570,7 +570,7 @@ function WarrantyClaimWizard({ product, onBack, onComplete, showToast }) {
       <div className="wizard-body">
         {step === 1 && (
           <>
-            <div className="form-group" style={{marginBottom: 20}}>
+            <div className="form-group" style={{ marginBottom: 20 }}>
               <label className="form-label">Issue Category</label>
               <div className="category-grid">
                 {ISSUE_CATEGORIES.map(cat => (
@@ -581,7 +581,7 @@ function WarrantyClaimWizard({ product, onBack, onComplete, showToast }) {
                 ))}
               </div>
             </div>
-            <div className="form-group" style={{marginBottom: 20}}>
+            <div className="form-group" style={{ marginBottom: 20 }}>
               <label className="form-label">Describe the Issue</label>
               <textarea className="form-input textarea" placeholder="Explain the issue in detail..." value={description} onChange={(e) => setDescription(e.target.value)} rows={4}></textarea>
             </div>
@@ -599,26 +599,26 @@ function WarrantyClaimWizard({ product, onBack, onComplete, showToast }) {
           </>
         )}
         {step === 2 && (
-          <div style={{textAlign: 'center', padding: '40px 0'}}>
-            <div style={{width: 80, height: 80, margin: '0 auto 16px', borderRadius: 16, background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <div style={{ width: 80, height: 80, margin: '0 auto 16px', borderRadius: 16, background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="upload" size={32} color="#131414" />
             </div>
-            <h3 style={{marginBottom: 8}}>Upload Attachments</h3>
-            <p style={{color: 'var(--text-secondary)', marginBottom: 20, fontSize: 14}}>Upload photos, screenshots, or logs related to your issue</p>
-            <input type="file" ref={fileRef} style={{display: 'none'}} multiple onChange={(e) => setFiles([...files, ...Array.from(e.target.files)])} />
+            <h3 style={{ marginBottom: 8 }}>Upload Attachments</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: 14 }}>Upload photos, screenshots, or logs related to your issue</p>
+            <input type="file" ref={fileRef} style={{ display: 'none' }} multiple onChange={(e) => setFiles([...files, ...Array.from(e.target.files)])} />
             <button className="btn-secondary" onClick={() => fileRef.current?.click()}><Icon name="paperclip" size={16} /><span>Choose Files</span></button>
-            {files.length > 0 && <p style={{marginTop: 12, fontSize: 13, color: 'var(--text-muted)'}}>{files.length} file(s) selected</p>}
+            {files.length > 0 && <p style={{ marginTop: 12, fontSize: 13, color: 'var(--text-muted)' }}>{files.length} file(s) selected</p>}
           </div>
         )}
         {step === 3 && (
           <div>
-            <h3 style={{marginBottom: 20}}>Review Your Claim</h3>
-            <div style={{display: 'grid', gap: 16}}>
-              <div><span style={{fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase'}}>Product</span><p style={{fontWeight: 500}}>{product.name} ┬╖ {product.serial}</p></div>
-              <div><span style={{fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase'}}>Category</span><p style={{fontWeight: 500}}>{category || 'Not selected'}</p></div>
-              <div><span style={{fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase'}}>Description</span><p style={{fontWeight: 500}}>{description || 'No description provided'}</p></div>
-              <div><span style={{fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase'}}>Contact</span><p style={{fontWeight: 500, textTransform: 'capitalize'}}>{contactMethod}</p></div>
-              <div><span style={{fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase'}}>Attachments</span><p style={{fontWeight: 500}}>{files.length} file(s)</p></div>
+            <h3 style={{ marginBottom: 20 }}>Review Your Claim</h3>
+            <div style={{ display: 'grid', gap: 16 }}>
+              <div><span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Product</span><p style={{ fontWeight: 500 }}>{product.name} ┬╖ {product.serial}</p></div>
+              <div><span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Category</span><p style={{ fontWeight: 500 }}>{category || 'Not selected'}</p></div>
+              <div><span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Description</span><p style={{ fontWeight: 500 }}>{description || 'No description provided'}</p></div>
+              <div><span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Contact</span><p style={{ fontWeight: 500, textTransform: 'capitalize' }}>{contactMethod}</p></div>
+              <div><span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Attachments</span><p style={{ fontWeight: 500 }}>{files.length} file(s)</p></div>
             </div>
           </div>
         )}
@@ -670,7 +670,7 @@ function RenewAMCWizard({ product, onBack, showToast }) {
       <div className="wizard-body">
         {step === 1 && (
           <>
-            <h3 style={{marginBottom: 16}}>Select AMC Plan</h3>
+            <h3 style={{ marginBottom: 16 }}>Select AMC Plan</h3>
             <div className="amc-plans">
               {plans.map(p => (
                 <div key={p.id} className={`amc-plan-card ${plan === p.id ? 'selected' : ''} ${p.highlighted && plan !== p.id ? 'highlighted' : ''}`} onClick={() => setPlan(p.id)}>
@@ -694,14 +694,14 @@ function RenewAMCWizard({ product, onBack, showToast }) {
           </>
         )}
         {step === 2 && (
-          <div style={{textAlign: 'center', padding: '40px 0'}}>
-            <div style={{width: 80, height: 80, margin: '0 auto 16px', borderRadius: 16, background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <div style={{ width: 80, height: 80, margin: '0 auto 16px', borderRadius: 16, background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="lock" size={32} color="#131414" />
             </div>
-            <h3 style={{marginBottom: 8}}>Payment</h3>
-            <p style={{color: 'var(--text-secondary)', fontSize: 14, marginBottom: 20}}>Payment integration coming soon. Click continue to confirm.</p>
-            <div style={{padding: 16, background: 'var(--bg-primary)', borderRadius: 12, display: 'inline-block'}}>
-              <span style={{fontWeight: 600}}>Selected: </span>
+            <h3 style={{ marginBottom: 8 }}>Payment</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 20 }}>Payment integration coming soon. Click continue to confirm.</p>
+            <div style={{ padding: 16, background: 'var(--bg-primary)', borderRadius: 12, display: 'inline-block' }}>
+              <span style={{ fontWeight: 600 }}>Selected: </span>
               <span>{plans.find(p => p.id === plan)?.name} ΓÇö {plans.find(p => p.id === plan)?.price}</span>
             </div>
           </div>
@@ -766,7 +766,7 @@ function TicketsPage({ onSelectTicket }) {
         <h1>My Tickets</h1>
       </div>
       <p className="tickets-subtitle">Track your support requests</p>
-      <div className="products-search" style={{marginBottom: 20}}>
+      <div className="products-search" style={{ marginBottom: 20 }}>
         <span className="search-icon"><Icon name="search" size={18} /></span>
         <input type="text" placeholder="Search by Ticket ID" />
       </div>
@@ -778,28 +778,28 @@ function TicketsPage({ onSelectTicket }) {
         ))}
       </div>
       <div ref={listRef}>
-      {filtered.map(ticket => (
-        <div key={ticket.id} className="ticket-card" onClick={() => onSelectTicket(ticket)}>
-          <div className={`ticket-status-dot ${ticket.status.toLowerCase().replace(' ', '-')}`}></div>
-          <div className="ticket-card-body">
-            <div className="ticket-card-top">
-              <span className={`badge ${ticket.status === 'Open' ? 'badge-amber' : ticket.status === 'In Progress' ? 'badge-blue' : ticket.status === 'Resolved' ? 'badge-green' : 'badge-gray'}`}>{ticket.status}</span>
-              <span className="ticket-card-id">{ticket.id}</span>
-              <span className="ticket-card-date">{ticket.created}</span>
+        {filtered.map(ticket => (
+          <div key={ticket.id} className="ticket-card" onClick={() => onSelectTicket(ticket)}>
+            <div className={`ticket-status-dot ${ticket.status.toLowerCase().replace(' ', '-')}`}></div>
+            <div className="ticket-card-body">
+              <div className="ticket-card-top">
+                <span className={`badge ${ticket.status === 'Open' ? 'badge-amber' : ticket.status === 'In Progress' ? 'badge-blue' : ticket.status === 'Resolved' ? 'badge-green' : 'badge-gray'}`}>{ticket.status}</span>
+                <span className="ticket-card-id">{ticket.id}</span>
+                <span className="ticket-card-date">{ticket.created}</span>
+              </div>
+              <div className="ticket-card-title">{ticket.title}</div>
+              <div className="ticket-card-meta">Last updated: {ticket.updated}</div>
             </div>
-            <div className="ticket-card-title">{ticket.title}</div>
-            <div className="ticket-card-meta">Last updated: {ticket.updated}</div>
+            <div className="ticket-card-actions">
+              <button className="btn-sm" onClick={(e) => { e.stopPropagation(); onSelectTicket(ticket); }}><Icon name="message-circle" size={14} /></button>
+            </div>
           </div>
-          <div className="ticket-card-actions">
-            <button className="btn-sm" onClick={(e) => { e.stopPropagation(); onSelectTicket(ticket); }}><Icon name="message-circle" size={14} /></button>
-          </div>
-        </div>
-      ))}
+        ))}
       </div>
       {filtered.length === 0 && <div className="empty-state"><p>No tickets found for this filter.</p></div>}
 
-      <div style={{marginTop: 32, padding: '24px 0', borderTop: '1px solid var(--border)'}}>
-        <h3 style={{textAlign: 'center', marginBottom: 16, color: 'var(--text-secondary)', fontSize: 14}}>Track Your Ticket in 4 Simple Steps</h3>
+      <div style={{ marginTop: 32, padding: '24px 0', borderTop: '1px solid var(--border)' }}>
+        <h3 style={{ textAlign: 'center', marginBottom: 16, color: 'var(--text-secondary)', fontSize: 14 }}>Track Your Ticket in 4 Simple Steps</h3>
         <div className="status-stepper">
           {['Created', 'Assigned', 'In Progress', 'Resolved'].map((s, i) => (
             <Fragment key={s}>
@@ -848,9 +848,9 @@ function TicketDetailView({ ticket, onBack, onChat, showToast }) {
         <h1>Ticket Details</h1>
       </div>
 
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24}}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <span className={`badge ${ticket.status === 'In Progress' ? 'badge-blue' : ticket.status === 'Open' ? 'badge-amber' : ticket.status === 'Resolved' ? 'badge-green' : 'badge-gray'}`} style={{marginBottom: 8, display: 'inline-block'}}>{ticket.status}</span>
+          <span className={`badge ${ticket.status === 'In Progress' ? 'badge-blue' : ticket.status === 'Open' ? 'badge-amber' : ticket.status === 'Resolved' ? 'badge-green' : 'badge-gray'}`} style={{ marginBottom: 8, display: 'inline-block' }}>{ticket.status}</span>
           <h2 className="ticket-detail-title">{ticket.title}</h2>
           <p className="ticket-detail-meta">Created: {ticket.created} ┬╖ Last Updated: {ticket.updated}</p>
           <p className="ticket-detail-meta">Ticket ID: #{ticket.id}</p>
@@ -866,8 +866,8 @@ function TicketDetailView({ ticket, onBack, onChat, showToast }) {
       <div className="ticket-detail-section">
         {activeDetailTab === 'details' && (
           <>
-            <div className="raise-ticket-product" style={{marginBottom: 24}}>
-              <img src={MOCK_PRODUCTS.find(p => p.name === ticket.product)?.image || 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=200'} alt={ticket.product} style={{width: 56, height: 56, borderRadius: 12, objectFit: 'cover'}} />
+            <div className="raise-ticket-product" style={{ marginBottom: 24 }}>
+              <img src={MOCK_PRODUCTS.find(p => p.name === ticket.product)?.image || 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=200'} alt={ticket.product} style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover' }} />
               <div className="raise-ticket-product-info">
                 <h3>{ticket.product}</h3>
                 <p>Serial No: {MOCK_PRODUCTS.find(p => p.name === ticket.product)?.serial || 'N/A'}</p>
@@ -876,17 +876,17 @@ function TicketDetailView({ ticket, onBack, onChat, showToast }) {
             <div className="ticket-detail-row">
               <div className="ticket-detail-field"><div className="field-label">Category</div><div className="field-value">{ticket.category}</div></div>
             </div>
-            <div className="ticket-detail-field" style={{marginBottom: 20}}>
+            <div className="ticket-detail-field" style={{ marginBottom: 20 }}>
               <div className="field-label">Description</div>
               <div className="field-value">{ticket.description}</div>
             </div>
 
-            <h4 style={{fontSize: 14, fontWeight: 700, marginBottom: 12}}>Tracking Timeline</h4>
+            <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Tracking Timeline</h4>
             <div className="ticket-timeline" ref={timelineRef}>
               <div className="timeline-line"></div>
               {ticket.timeline.map((item, i) => (
-                <div key={i} className={`timeline-item ${item.done ? 'active' : ''} ${item.done && !ticket.timeline[i+1]?.done ? 'current' : ''}`}>
-                  <div className="timeline-node">{item.done && <Icon name="check" size={14} color={item.done && !ticket.timeline[i+1]?.done ? '#131414' : 'white'} />}</div>
+                <div key={i} className={`timeline-item ${item.done ? 'active' : ''} ${item.done && !ticket.timeline[i + 1]?.done ? 'current' : ''}`}>
+                  <div className="timeline-node">{item.done && <Icon name="check" size={14} color={item.done && !ticket.timeline[i + 1]?.done ? '#131414' : 'white'} />}</div>
                   <div className="timeline-content">
                     <div className="timeline-title">{item.step}</div>
                     <div className="timeline-date">{item.date || 'Pending'}</div>
@@ -900,8 +900,8 @@ function TicketDetailView({ ticket, onBack, onChat, showToast }) {
         {activeDetailTab === 'timeline' && (
           <div className="ticket-timeline">
             {ticket.timeline.map((item, i) => (
-              <div key={i} className={`timeline-item ${item.done ? 'active' : ''} ${item.done && !ticket.timeline[i+1]?.done ? 'current' : ''}`}>
-                <div className="timeline-node">{item.done && <Icon name="check" size={14} color={item.done && !ticket.timeline[i+1]?.done ? '#131414' : 'white'} />}</div>
+              <div key={i} className={`timeline-item ${item.done ? 'active' : ''} ${item.done && !ticket.timeline[i + 1]?.done ? 'current' : ''}`}>
+                <div className="timeline-node">{item.done && <Icon name="check" size={14} color={item.done && !ticket.timeline[i + 1]?.done ? '#131414' : 'white'} />}</div>
                 <div className="timeline-content">
                   <div className="timeline-title">{item.step}</div>
                   <div className="timeline-date">{item.date || 'Pending'}</div>
@@ -913,21 +913,21 @@ function TicketDetailView({ ticket, onBack, onChat, showToast }) {
 
         {activeDetailTab === 'updates' && (
           <div>
-            <h4 style={{marginBottom: 16}}>Admin Updates</h4>
+            <h4 style={{ marginBottom: 16 }}>Admin Updates</h4>
             {ticket.updates.length > 0 ? ticket.updates.map((u, i) => (
-              <div key={i} style={{padding: 16, background: 'var(--bg-primary)', borderRadius: 12, marginBottom: 12}}>
-                <div style={{fontSize: 12, color: 'var(--text-muted)', marginBottom: 4}}>{u.date}</div>
-                <p style={{fontSize: 14, marginBottom: 6}}>{u.text}</p>
-                <span style={{fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)'}}>{u.author}</span>
+              <div key={i} style={{ padding: 16, background: 'var(--bg-primary)', borderRadius: 12, marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{u.date}</div>
+                <p style={{ fontSize: 14, marginBottom: 6 }}>{u.text}</p>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>{u.author}</span>
               </div>
-            )) : <p style={{color: 'var(--text-muted)', textAlign: 'center', padding: 32}}>No updates yet.</p>}
+            )) : <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 32 }}>No updates yet.</p>}
           </div>
         )}
 
         {activeDetailTab === 'attachments' && (
-          <div style={{textAlign: 'center', padding: 40, color: 'var(--text-muted)'}}>
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
             <Icon name="paperclip" size={32} color="#8a8a8a" />
-            <p style={{marginTop: 12}}>No attachments for this ticket.</p>
+            <p style={{ marginTop: 12 }}>No attachments for this ticket.</p>
           </div>
         )}
       </div>
@@ -949,7 +949,7 @@ function FAQsPage({ onSelectCategory, onChat, showToast }) {
     <div>
       <div className="faqs-hero">
         <div className="faqs-avatar">
-          <svg width="40" height="40" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="#F9C54D"/><circle cx="18" cy="20" r="3" fill="#131414"/><circle cx="30" cy="20" r="3" fill="#131414"/><path d="M16 30c0-4 4-6 8-6s8 2 8 6" stroke="#131414" strokeWidth="2.5" strokeLinecap="round"/></svg>
+          <svg width="40" height="40" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="#F9C54D" /><circle cx="18" cy="20" r="3" fill="#131414" /><circle cx="30" cy="20" r="3" fill="#131414" /><path d="M16 30c0-4 4-6 8-6s8 2 8 6" stroke="#131414" strokeWidth="2.5" strokeLinecap="round" /></svg>
           <div className="faqs-avatar-wave"><span></span><span></span><span></span><span></span><span></span></div>
         </div>
         <h1>How can we help?</h1>
@@ -992,11 +992,11 @@ function FAQCategoryView({ category, onBack, onChat, showToast }) {
         <button className="back-btn" onClick={onBack}><Icon name="arrow-left" size={20} /></button>
         <h1>{category.name}</h1>
       </div>
-      <div style={{textAlign: 'center', marginBottom: 32}}>
-        <div style={{width: 56, height: 56, margin: '0 auto 12px', borderRadius: 14, background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+      <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ width: 56, height: 56, margin: '0 auto 12px', borderRadius: 14, background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={category.icon} size={24} />
         </div>
-        <p style={{fontSize: 14, color: 'var(--text-secondary)'}}>Find solutions to common {category.name.toLowerCase()} related issues.</p>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Find solutions to common {category.name.toLowerCase()} related issues.</p>
       </div>
       <div className="faq-list">
         {articles.map(article => (
@@ -1008,8 +1008,8 @@ function FAQCategoryView({ category, onBack, onChat, showToast }) {
             {openId === article.id && (
               <div className="faq-answer">
                 {article.a.split('\n').map((line, i) => {
-                  if (line.startsWith('ΓÇó')) return <div key={i} style={{display: 'flex', gap: 8, marginBottom: 6, paddingLeft: 8}}><span>ΓÇó</span><span>{line.substring(2)}</span></div>;
-                  return <p key={i} style={{marginBottom: 6}}>{line}</p>;
+                  if (line.startsWith('ΓÇó')) return <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, paddingLeft: 8 }}><span>ΓÇó</span><span>{line.substring(2)}</span></div>;
+                  return <p key={i} style={{ marginBottom: 6 }}>{line}</p>;
                 })}
                 <div className="faq-feedback">
                   <span>Was this helpful?</span>
@@ -1022,7 +1022,7 @@ function FAQCategoryView({ category, onBack, onChat, showToast }) {
         ))}
         {articles.length === 0 && <div className="empty-state"><p>No articles found for this category yet.</p></div>}
       </div>
-      <div className="faqs-help-banner" style={{marginTop: 32}}>
+      <div className="faqs-help-banner" style={{ marginTop: 32 }}>
         <div className="help-text">
           <h3>Can't find what you're looking for?</h3>
           <p>Ask our AI assistant and get instant help.</p>
@@ -1076,7 +1076,7 @@ function ChatSupportScreen({ onClose, onEndSession }) {
       <div className="chat-topbar">
         <div className="chat-topbar-left">
           <button className="btn-icon" onClick={onClose}><Icon name="arrow-left" size={20} /></button>
-          <div className="chat-bot-avatar"><svg width="24" height="24" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="#F9C54D"/><circle cx="18" cy="20" r="3" fill="#131414"/><circle cx="30" cy="20" r="3" fill="#131414"/></svg></div>
+          <div className="chat-bot-avatar"><svg width="24" height="24" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="#F9C54D" /><circle cx="18" cy="20" r="3" fill="#131414" /><circle cx="30" cy="20" r="3" fill="#131414" /></svg></div>
           <div className="chat-bot-info">
             <span className="chat-bot-name">Chat with AI</span>
             <span className="chat-bot-status">Online</span>
@@ -1087,7 +1087,7 @@ function ChatSupportScreen({ onClose, onEndSession }) {
       <div className="chat-messages">
         {messages.map((msg, i) => (
           <div key={i} className={`chat-bubble ${msg.role}`}>
-            {msg.role === 'assistant' && <div className="bubble-avatar"><svg width="20" height="20" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="#F9C54D"/><circle cx="18" cy="20" r="2" fill="#131414"/><circle cx="30" cy="20" r="2" fill="#131414"/></svg></div>}
+            {msg.role === 'assistant' && <div className="bubble-avatar"><svg width="20" height="20" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="#F9C54D" /><circle cx="18" cy="20" r="2" fill="#131414" /><circle cx="30" cy="20" r="2" fill="#131414" /></svg></div>}
             <div className={`bubble-content ${msg.role}`}>
               {msg.content.split('\n').map((line, j) => <div key={j}>{line}</div>)}
               <span className="bubble-time">{msg.time}</span>
@@ -1096,7 +1096,7 @@ function ChatSupportScreen({ onClose, onEndSession }) {
         ))}
         {loading && (
           <div className="chat-bubble assistant">
-            <div className="bubble-avatar"><svg width="20" height="20" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="#F9C54D"/></svg></div>
+            <div className="bubble-avatar"><svg width="20" height="20" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="#F9C54D" /></svg></div>
             <div className="bubble-content assistant typing"><span className="typing-dot"></span><span className="typing-dot"></span><span className="typing-dot"></span></div>
           </div>
         )}
@@ -1206,7 +1206,7 @@ function FeedbackPopup({ onClose, showToast }) {
             <button key={star} className={`star-btn ${star <= (hover || rating) ? 'filled' : ''}`}
               onClick={() => setRating(star)} onMouseEnter={() => setHover(star)} onMouseLeave={() => setHover(0)}>
               <svg width="36" height="36" viewBox="0 0 24 24" fill={star <= (hover || rating) ? '#F9C54D' : 'none'} stroke={star <= (hover || rating) ? '#F9C54D' : '#ccc'} strokeWidth="2">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
               </svg>
             </button>
           ))}
@@ -1226,7 +1226,7 @@ function InfoModal({ title, imageSrc, children, onClose }) {
         <div className="info-modal-top">
           {imageSrc && <img src={imageSrc} alt={title} className="info-modal-img" />}
           <div>
-            <h3 style={{margin:0}}>{title}</h3>
+            <h3 style={{ margin: 0 }}>{title}</h3>
           </div>
         </div>
         <div className="info-modal-body">{children}</div>
@@ -1435,7 +1435,7 @@ function App() {
       />}
       {showLanguageModal && (
         <InfoModal title="Language / αñ╣αñ┐αñéαñªαÑÇ" imageSrc="/images/lang.svg" onClose={() => setShowLanguageModal(false)}>
-          <div style={{display:'flex', gap:12, flexDirection:'column'}}>
+          <div style={{ display: 'flex', gap: 12, flexDirection: 'column' }}>
             <button className="btn-primary" onClick={() => { setShowLanguageModal(false); showToast?.('Language set to English', 'success'); }}>English</button>
             <button className="btn-secondary" onClick={() => { setShowLanguageModal(false); showToast?.('Language set to Hindi', 'success'); }}>αñ╣αñ┐αñéαñªαÑÇ</button>
           </div>
@@ -1443,12 +1443,12 @@ function App() {
       )}
       {showAboutModal && (
         <InfoModal title="About Our AI" imageSrc="/images/ai.svg" onClose={() => setShowAboutModal(false)}>
-          <p style={{color:'var(--text-secondary)'}}>Our AI assistant provides guided troubleshooting, ticket routing, and contextual help using secure, vendor-approved models. It can suggest diagnostics, collect logs, and help escalate to human engineers when needed.</p>
+          <p style={{ color: 'var(--text-secondary)' }}>Our AI assistant provides guided troubleshooting, ticket routing, and contextual help using secure, vendor-approved models. It can suggest diagnostics, collect logs, and help escalate to human engineers when needed.</p>
         </InfoModal>
       )}
       {showTelecomModal && (
         <InfoModal title="Telecom Solutions (B2B)" imageSrc="/images/telecom.svg" onClose={() => setShowTelecomModal(false)}>
-          <ul style={{marginTop:8}}>
+          <ul style={{ marginTop: 8 }}>
             <li>Enterprise device management</li>
             <li>Bulk warranty & AMC plans</li>
             <li>Priority SLAs and on-site support</li>
@@ -1457,12 +1457,12 @@ function App() {
       )}
       {showTOSModal && (
         <InfoModal title="Terms of Service" imageSrc="/images/terms.svg" onClose={() => setShowTOSModal(false)}>
-          <p style={{color:'var(--text-secondary)'}}>These terms govern the use of LaptopCare services. For full details, please review the complete Terms of Service on our website.</p>
+          <p style={{ color: 'var(--text-secondary)' }}>These terms govern the use of LaptopCare services. For full details, please review the complete Terms of Service on our website.</p>
         </InfoModal>
       )}
       {showPrivacyModal && (
         <InfoModal title="Privacy Policy" imageSrc="/images/privacy.svg" onClose={() => setShowPrivacyModal(false)}>
-          <p style={{color:'var(--text-secondary)'}}>We protect your personal data and process it according to applicable laws. Contact support for data export or deletion requests.</p>
+          <p style={{ color: 'var(--text-secondary)' }}>We protect your personal data and process it according to applicable laws. Contact support for data export or deletion requests.</p>
         </InfoModal>
       )}
       <Toast visible={toast.visible} message={toast.message} type={toast.type} />
@@ -1544,9 +1544,9 @@ function SettingsProfilePage({ onClose }) {
             <p className="text-muted">alex@email.com</p>
           </div>
         </div>
-        <div style={{marginTop:16}}>
+        <div style={{ marginTop: 16 }}>
           <button className="btn-primary">Edit Profile</button>
-          <button className="btn-secondary" style={{marginLeft:12}}>Change Password</button>
+          <button className="btn-secondary" style={{ marginLeft: 12 }}>Change Password</button>
         </div>
       </div>
     </div>
