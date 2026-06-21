@@ -1550,7 +1550,8 @@ img {
 }
 
 .quick-action-arrow {
-  color: var(--text-muted);
+  /* removed - kept for backward compatibility if needed */
+  display: none;
 }
 
 /* ═══════════════════════════════════════════════════════════

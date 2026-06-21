@@ -46,7 +46,7 @@ export default function Icon({ name, size = 20, color = 'currentColor', fill = '
     'thumbs-down': <><path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3zm7-13h2.67A2.31 2.31 0 0122 4v7a2.31 2.31 0 01-2.33 2H17"/></>,
     'mail': <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>,
     'plus': <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
-    'more-vertical': <><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></>,
+    // 'more-vertical' removed
     'clock': <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
     'activity': <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>,
     'stop-circle': <><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></>,

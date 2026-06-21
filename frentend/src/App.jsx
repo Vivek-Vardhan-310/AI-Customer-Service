@@ -522,11 +522,11 @@ function ProductDetailView({ product, onBack, onWarrantyClaim, onRenewAMC }) {
       </div>
       <h3 className="quick-actions-title">Quick Actions</h3>
       <div className="quick-actions-list">
-        <div className="quick-action-item" onClick={onWarrantyClaim}><Icon name="upload" size={18} /><span>Raise Warranty Claim</span><span className="quick-action-arrow"><Icon name="chevron-right" size={16} /></span></div>
-        <div className="quick-action-item"><Icon name="activity" size={18} /><span>Raise AMC Service Request</span><span className="quick-action-arrow"><Icon name="chevron-right" size={16} /></span></div>
-        <div className="quick-action-item" onClick={onRenewAMC}><Icon name="shield" size={18} /><span>Renew AMC</span><span className="quick-action-arrow"><Icon name="chevron-right" size={16} /></span></div>
-        <div className="quick-action-item"><Icon name="alert-triangle" size={18} /><span>Raise General Complaint</span><span className="quick-action-arrow"><Icon name="chevron-right" size={16} /></span></div>
-        <div className="quick-action-item"><Icon name="message-circle" size={18} /><span>AI Troubleshoot</span><span className="quick-action-arrow"><Icon name="chevron-right" size={16} /></span></div>
+        <div className="quick-action-item" onClick={onWarrantyClaim}><Icon name="upload" size={18} /><span>Raise Warranty Claim</span></div>
+        <div className="quick-action-item"><Icon name="activity" size={18} /><span>Raise AMC Service Request</span></div>
+        <div className="quick-action-item" onClick={onRenewAMC}><Icon name="shield" size={18} /><span>Renew AMC</span></div>
+        <div className="quick-action-item"><Icon name="alert-triangle" size={18} /><span>Raise General Complaint</span></div>
+        {/* AI Troubleshoot removed per request */}
       </div>
     </div>
   );
@@ -788,7 +788,7 @@ function TicketsPage({ onSelectTicket }) {
               <span className="ticket-card-date">{ticket.created}</span>
             </div>
             <div className="ticket-card-title">{ticket.title}</div>
-            <div className="ticket-card-meta">Last updated: {ticket.updated} ┬╖ Priority: {ticket.priority}</div>
+            <div className="ticket-card-meta">Last updated: {ticket.updated}</div>
           </div>
           <div className="ticket-card-actions">
             <button className="btn-sm" onClick={(e) => { e.stopPropagation(); onSelectTicket(ticket); }}><Icon name="message-circle" size={14} /></button>
@@ -846,7 +846,6 @@ function TicketDetailView({ ticket, onBack, onChat, showToast }) {
       <div className="detail-header">
         <button className="back-btn" onClick={onBack}><Icon name="arrow-left" size={20} /></button>
         <h1>Ticket Details</h1>
-        <div style={{marginLeft: 'auto'}}><button className="btn-icon"><Icon name="more-vertical" size={20} /></button></div>
       </div>
 
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24}}>
@@ -854,7 +853,7 @@ function TicketDetailView({ ticket, onBack, onChat, showToast }) {
           <span className={`badge ${ticket.status === 'In Progress' ? 'badge-blue' : ticket.status === 'Open' ? 'badge-amber' : ticket.status === 'Resolved' ? 'badge-green' : 'badge-gray'}`} style={{marginBottom: 8, display: 'inline-block'}}>{ticket.status}</span>
           <h2 className="ticket-detail-title">{ticket.title}</h2>
           <p className="ticket-detail-meta">Created: {ticket.created} ┬╖ Last Updated: {ticket.updated}</p>
-          <p className="ticket-detail-meta">Priority: {ticket.priority} ┬╖ #{ticket.id}</p>
+          <p className="ticket-detail-meta">Ticket ID: #{ticket.id}</p>
         </div>
       </div>
 
@@ -876,7 +875,6 @@ function TicketDetailView({ ticket, onBack, onChat, showToast }) {
             </div>
             <div className="ticket-detail-row">
               <div className="ticket-detail-field"><div className="field-label">Category</div><div className="field-value">{ticket.category}</div></div>
-              <div className="ticket-detail-field"><div className="field-label">Priority</div><div className="field-value">{ticket.priority}</div></div>
             </div>
             <div className="ticket-detail-field" style={{marginBottom: 20}}>
               <div className="field-label">Description</div>
@@ -1531,15 +1529,7 @@ function SettingsPage({ onClose }) {
           </div>
         </div>
 
-        <div className="settings-card">
-          <h3>Support</h3>
-          <div className="form-group">
-            <button className="btn-primary">Contact Support</button>
-          </div>
-          <div className="form-group">
-            <button className="btn-outline-accent">Export Account Data</button>
-          </div>
-        </div>
+        {/* Support card removed per request */}
       </div>
     </div>
   );
