@@ -51,7 +51,7 @@ default_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://ai-customer-service-users.onrender.com",
-    "https://ai-customer-service-vs5z.vercel.app",
+    "https://ai-customer-service-userview.onrender.com",
 ]
 
 # Allow overriding via environment variable `ALLOWED_ORIGINS` (comma-separated)
