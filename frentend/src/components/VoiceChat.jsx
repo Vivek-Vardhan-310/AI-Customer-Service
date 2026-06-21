@@ -374,9 +374,9 @@ const VoiceChat = ({ token, onSessionComplete }) => {
         const MicVAD = vadModule.MicVAD;
 
         vad = await MicVAD.new({
-          // Point VAD to use the local files copied to the public directory
-          workletURL: '/vad.worklet.bundle.min.js',
-          modelURL: '/silero_vad_legacy.onnx',
+          // Point VAD to load assets from absolute root and WASM from CDN
+          baseAssetPath: '/',
+          onnxWASMBasePath: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.0/dist/',
           stream: stream, // Pass our custom echo-cancelled stream
 
           // ── VAD Configuration ──────────────────────────────────
