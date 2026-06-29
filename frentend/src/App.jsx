@@ -5,6 +5,9 @@ import './animations.css';
 // Config
 import { supabase } from './config';
 
+// Supabase data layer
+import { fetchProfile, fetchProducts as fetchProductsDB, fetchTickets as fetchTicketsDB } from './lib/supabase';
+
 // Layout & Common Components
 import Toast from './components/Toast';
 import TopAppBar from './components/TopAppBar';
@@ -35,16 +38,15 @@ import SettingsProfilePage from './pages/SettingsProfilePage';
 
 function App() {
   // Auth state
-  // Auto-login locally for developer preview (keeps behavior unchanged in prod)
-  const [loggedIn, setLoggedIn] = useState(() => {
-    try {
-      return window && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    } catch (e) {
-      return false;
-    }
-  });
+  const [loggedIn, setLoggedIn] = useState(false);
   const [currentPage, setCurrentPage] = useState('login');
   const [loading, setLoading] = useState(false);
+
+  // User data from Supabase
+  const [userProfile, setUserProfile] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [dataLoading, setDataLoading] = useState(false);
 
   // Navigation
   const [activeTab, setActiveTab] = useState('home');
@@ -80,6 +82,40 @@ function App() {
 
   useEffect(() => () => { if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current); }, []);
 
+  // Load user data after login
+  const loadUserData = useCallback(async () => {
+    setDataLoading(true);
+    try {
+      const [profile, prods, tix] = await Promise.all([
+        fetchProfile(),
+        fetchProductsDB(),
+        fetchTicketsDB(),
+      ]);
+      setUserProfile(profile);
+      setProducts(prods);
+      setTickets(tix);
+    } catch (e) {
+      console.error('Error loading user data:', e);
+    } finally {
+      setDataLoading(false);
+    }
+  }, []);
+
+  const refreshProducts = useCallback(async () => {
+    const prods = await fetchProductsDB();
+    setProducts(prods);
+  }, []);
+
+  const refreshTickets = useCallback(async () => {
+    const tix = await fetchTicketsDB();
+    setTickets(tix);
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    const profile = await fetchProfile();
+    setUserProfile(profile);
+  }, []);
+
   // Tab change resets view
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -95,10 +131,20 @@ function App() {
     (async () => {
       try {
         const { data } = await supabase.auth.getSession();
-        if (data?.session) { localStorage.setItem('supabase_token', data.session.access_token); setLoggedIn(true); }
+        if (data?.session) {
+          localStorage.setItem('supabase_token', data.session.access_token);
+          setLoggedIn(true);
+        }
       } catch (e) { console.error('Session check error:', e); }
     })();
   }, []);
+
+  // Load data when logged in changes to true
+  useEffect(() => {
+    if (loggedIn) {
+      loadUserData();
+    }
+  }, [loggedIn, loadUserData]);
 
   const handleLogin = async ({ email, password }) => {
     if (!supabase) { showToast('Supabase not configured — demo mode active', 'warning'); setLoggedIn(true); return true; }
@@ -131,6 +177,9 @@ function App() {
     setCurrentPage('login');
     setActiveTab('home');
     setCurrentView(null);
+    setUserProfile(null);
+    setProducts([]);
+    setTickets([]);
   };
 
   const openProfilePage = () => {
@@ -168,14 +217,14 @@ function App() {
 
   // Render current view content
   const renderContent = () => {
-    if (showProfilePage) return <SettingsProfilePage onClose={() => setShowProfilePage(false)} />;
+    if (showProfilePage) return <SettingsProfilePage onClose={() => setShowProfilePage(false)} profile={userProfile} refreshProfile={refreshProfile} showToast={showToast} />;
     if (showSettingsPage) return <SettingsPage onClose={() => setShowSettingsPage(false)} />;
     if (activeTab === 'home' && !currentView) {
-      return <HomePage onNavigate={handleTabChange} />;
+      return <HomePage onNavigate={handleTabChange} profile={userProfile} />;
     }
     if (activeTab === 'products') {
       if (currentView === 'warranty-claim' && selectedProduct) {
-        return <WarrantyClaimWizard product={selectedProduct} onBack={() => setCurrentView('detail')} onComplete={(id) => { setCurrentView(null); setActiveTab('tickets'); showToast('Ticket ' + id + ' created!', 'success'); }} showToast={showToast} />;
+        return <WarrantyClaimWizard product={selectedProduct} onBack={() => setCurrentView('detail')} onComplete={(id) => { setCurrentView(null); setActiveTab('tickets'); refreshTickets(); showToast('Ticket ' + id + ' created!', 'success'); }} showToast={showToast} />;
       }
       if (currentView === 'renew-amc' && selectedProduct) {
         return <RenewAMCWizard product={selectedProduct} onBack={() => setCurrentView('detail')} showToast={showToast} />;
@@ -183,13 +232,13 @@ function App() {
       if (currentView === 'detail' && selectedProduct) {
         return <ProductDetailView product={selectedProduct} onBack={() => { setCurrentView(null); setSelectedProduct(null); }} onWarrantyClaim={() => setCurrentView('warranty-claim')} onRenewAMC={() => setCurrentView('renew-amc')} />;
       }
-      return <MyProductsPage onSelectProduct={(p) => { setSelectedProduct(p); setCurrentView('detail'); }} />;
+      return <MyProductsPage products={products} loading={dataLoading} onSelectProduct={(p) => { setSelectedProduct(p); setCurrentView('detail'); }} />;
     }
     if (activeTab === 'tickets') {
       if (currentView === 'detail' && selectedTicket) {
         return <TicketDetailView ticket={selectedTicket} onBack={() => { setCurrentView(null); setSelectedTicket(null); }} onChat={() => setShowChat(true)} showToast={showToast} />;
       }
-      return <TicketsPage onSelectTicket={(t) => { setSelectedTicket(t); setCurrentView('detail'); }} />;
+      return <TicketsPage tickets={tickets} loading={dataLoading} onSelectTicket={(t) => { setSelectedTicket(t); setCurrentView('detail'); }} />;
     }
     if (activeTab === 'faqs') {
       if (currentView === 'category' && selectedFAQCategory) {
@@ -204,7 +253,7 @@ function App() {
 
   return (
     <div className="app-layout">
-      <TopAppBar onMenuClick={() => setShowDrawer(true)} onLogout={handleLogout} onOpenProfile={openProfilePage} onOpenSettings={openSettingsPage} />
+      <TopAppBar profile={userProfile} onMenuClick={() => setShowDrawer(true)} onLogout={handleLogout} onOpenProfile={openProfilePage} onOpenSettings={openSettingsPage} />
       <main className="main-content">
         <div key={pageKey} className="page-wrap fade-up">
           {renderContent()}

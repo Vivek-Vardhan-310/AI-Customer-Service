@@ -1,6 +1,8 @@
 import Icon from '../components/ui/Icon';
 
-export default function HomePage({ onNavigate }) {
+export default function HomePage({ onNavigate, profile }) {
+  const userName = profile?.full_name || 'there';
+
   return (
     <div>
       <div className="home-hero">
@@ -10,7 +12,7 @@ export default function HomePage({ onNavigate }) {
         <div className="home-hero-overlay" aria-hidden="true"></div>
         <div className="home-hero-content">
           <div className="home-greeting">
-            <h1>Hi, Alex</h1>
+            <h1>Hi, {userName}</h1>
             <p>How can we help you today?</p>
           </div>
           <h2 className="home-section-title">Popular Actions</h2>

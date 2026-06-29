@@ -1,7 +1,6 @@
 import Icon from '../components/ui/Icon';
-import { MOCK_PRODUCTS } from '../data/products';
 
-export default function MyProductsPage({ onSelectProduct }) {
+export default function MyProductsPage({ products, loading, onSelectProduct }) {
   return (
     <div>
       <div className="page-header">
@@ -9,13 +8,18 @@ export default function MyProductsPage({ onSelectProduct }) {
           <h1>My Products</h1>
           <p>Track your registered devices</p>
         </div>
-        <button className="btn-primary"><Icon name="plus" size={18} /><span>Add Product</span></button>
       </div>
       <div className="products-search">
         <span className="search-icon"><Icon name="search" size={18} /></span>
         <input type="text" placeholder="Search your devices" />
       </div>
-      {MOCK_PRODUCTS.map(product => (
+      {loading && (
+        <div className="empty-state"><p>Loading products...</p></div>
+      )}
+      {!loading && products.length === 0 && (
+        <div className="empty-state"><p>No products registered yet. Add your first device to get started.</p></div>
+      )}
+      {!loading && products.map(product => (
         <div key={product.id} className="product-card" onClick={() => onSelectProduct(product)}>
           <img src={product.image} alt={product.name} className="product-card-img" />
           <div className="product-card-info">

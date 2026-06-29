@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import Icon from '../components/ui/Icon';
-import { MOCK_PRODUCTS } from '../data/products';
 
 export default function TicketDetailView({ ticket, onBack, onChat, showToast }) {
   const [activeDetailTab, setActiveDetailTab] = useState('details');
@@ -49,10 +48,10 @@ export default function TicketDetailView({ ticket, onBack, onChat, showToast }) 
         {activeDetailTab === 'details' && (
           <>
             <div className="raise-ticket-product" style={{ marginBottom: 24 }}>
-              <img src={MOCK_PRODUCTS.find(p => p.name === ticket.product)?.image || 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=200'} alt={ticket.product} style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover' }} />
+              <img src={ticket.productImage || 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=200'} alt={ticket.product} style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover' }} />
               <div className="raise-ticket-product-info">
                 <h3>{ticket.product}</h3>
-                <p>Serial No: {MOCK_PRODUCTS.find(p => p.name === ticket.product)?.serial || 'N/A'}</p>
+                <p>Serial No: {ticket.productSerial || 'N/A'}</p>
               </div>
             </div>
             <div className="ticket-detail-row">
@@ -66,9 +65,9 @@ export default function TicketDetailView({ ticket, onBack, onChat, showToast }) 
             <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Tracking Timeline</h4>
             <div className="ticket-timeline" ref={timelineRef}>
               <div className="timeline-line"></div>
-              {ticket.timeline.map((item, i) => (
-                <div key={i} className={`timeline-item ${item.done ? 'active' : ''} ${item.done && !ticket.timeline[i + 1]?.done ? 'current' : ''}`}>
-                  <div className="timeline-node">{item.done && <Icon name="check" size={14} color={item.done && !ticket.timeline[i + 1]?.done ? '#131414' : 'white'} />}</div>
+              {(ticket.timeline || []).map((item, i) => (
+                <div key={i} className={`timeline-item ${item.done ? 'active' : ''} ${item.done && !(ticket.timeline[i + 1]?.done) ? 'current' : ''}`}>
+                  <div className="timeline-node">{item.done && <Icon name="check" size={14} color={item.done && !(ticket.timeline[i + 1]?.done) ? '#131414' : 'white'} />}</div>
                   <div className="timeline-content">
                     <div className="timeline-title">{item.step}</div>
                     <div className="timeline-date">{item.date || 'Pending'}</div>
@@ -81,9 +80,9 @@ export default function TicketDetailView({ ticket, onBack, onChat, showToast }) 
 
         {activeDetailTab === 'timeline' && (
           <div className="ticket-timeline">
-            {ticket.timeline.map((item, i) => (
-              <div key={i} className={`timeline-item ${item.done ? 'active' : ''} ${item.done && !ticket.timeline[i + 1]?.done ? 'current' : ''}`}>
-                <div className="timeline-node">{item.done && <Icon name="check" size={14} color={item.done && !ticket.timeline[i + 1]?.done ? '#131414' : 'white'} />}</div>
+            {(ticket.timeline || []).map((item, i) => (
+              <div key={i} className={`timeline-item ${item.done ? 'active' : ''} ${item.done && !(ticket.timeline[i + 1]?.done) ? 'current' : ''}`}>
+                <div className="timeline-node">{item.done && <Icon name="check" size={14} color={item.done && !(ticket.timeline[i + 1]?.done) ? '#131414' : 'white'} />}</div>
                 <div className="timeline-content">
                   <div className="timeline-title">{item.step}</div>
                   <div className="timeline-date">{item.date || 'Pending'}</div>
@@ -96,7 +95,7 @@ export default function TicketDetailView({ ticket, onBack, onChat, showToast }) 
         {activeDetailTab === 'updates' && (
           <div>
             <h4 style={{ marginBottom: 16 }}>Admin Updates</h4>
-            {ticket.updates.length > 0 ? ticket.updates.map((u, i) => (
+            {(ticket.updates || []).length > 0 ? ticket.updates.map((u, i) => (
               <div key={i} style={{ padding: 16, background: 'var(--bg-primary)', borderRadius: 12, marginBottom: 12 }}>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{u.date}</div>
                 <p style={{ fontSize: 14, marginBottom: 6 }}>{u.text}</p>

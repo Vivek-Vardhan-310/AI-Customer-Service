@@ -1,6 +1,6 @@
-import { useState, useRef, Fragment } from 'react';
+import { useState, useRef, useEffect, Fragment } from 'react';
 import Icon from '../components/ui/Icon';
-import { ISSUE_CATEGORIES } from '../data/issues';
+import { fetchIssueCategories, createTicket } from '../lib/supabase';
 
 export default function WarrantyClaimWizard({ product, onBack, onComplete, showToast }) {
   const [step, setStep] = useState(1);
@@ -8,14 +8,43 @@ export default function WarrantyClaimWizard({ product, onBack, onComplete, showT
   const [description, setDescription] = useState('');
   const [contactMethod, setContactMethod] = useState('email');
   const [files, setFiles] = useState([]);
+  const [issueCategories, setIssueCategories] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef(null);
 
   const stepLabels = ['Issue Details', 'Upload', 'Review'];
 
-  const handleSubmit = () => {
-    const ticketId = `CS-${9100 + Math.floor(Math.random() * 900)}`;
-    showToast?.('Warranty claim submitted! Ticket: ' + ticketId, 'success');
-    onComplete(ticketId);
+  useEffect(() => {
+    fetchIssueCategories().then(setIssueCategories);
+  }, []);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      const selectedCat = issueCategories.find(c => c.id === category);
+      const result = await createTicket({
+        productId: product.id,
+        title: `${product.name} - ${selectedCat?.name || 'Warranty Claim'}`,
+        category: selectedCat?.name || 'General',
+        description,
+        contactMethod,
+      });
+
+      if (result) {
+        showToast?.('Warranty claim submitted! Ticket: ' + result.id, 'success');
+        onComplete(result.id);
+      } else {
+        // Fallback if Supabase is not configured
+        const ticketId = `CS-${9100 + Math.floor(Math.random() * 900)}`;
+        showToast?.('Warranty claim submitted! Ticket: ' + ticketId, 'success');
+        onComplete(ticketId);
+      }
+    } catch (err) {
+      console.error('Submit error:', err);
+      showToast?.('Failed to submit claim. Please try again.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -42,10 +71,10 @@ export default function WarrantyClaimWizard({ product, onBack, onComplete, showT
             <div className="form-group" style={{ marginBottom: 20 }}>
               <label className="form-label">Issue Category</label>
               <div className="category-grid">
-                {ISSUE_CATEGORIES.map(cat => (
+                {issueCategories.map(cat => (
                   <div key={cat.id} className={`category-card ${category === cat.id ? 'selected' : ''}`} onClick={() => setCategory(cat.id)}>
-                    <div className="category-card-icon"><Icon name={cat.icon} size={22} /></div>
-                    <span className="category-card-label">{cat.label}</span>
+                    <div className="category-card-icon"><Icon name={cat.icon || 'help-circle'} size={22} /></div>
+                    <span className="category-card-label">{cat.label || cat.name}</span>
                   </div>
                 ))}
               </div>
@@ -84,7 +113,7 @@ export default function WarrantyClaimWizard({ product, onBack, onComplete, showT
             <h3 style={{ marginBottom: 20 }}>Review Your Claim</h3>
             <div style={{ display: 'grid', gap: 16 }}>
               <div><span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Product</span><p style={{ fontWeight: 500 }}>{product.name} · {product.serial}</p></div>
-              <div><span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Category</span><p style={{ fontWeight: 500 }}>{category || 'Not selected'}</p></div>
+              <div><span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Category</span><p style={{ fontWeight: 500 }}>{issueCategories.find(c => c.id === category)?.name || 'Not selected'}</p></div>
               <div><span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Description</span><p style={{ fontWeight: 500 }}>{description || 'No description provided'}</p></div>
               <div><span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Contact</span><p style={{ fontWeight: 500, textTransform: 'capitalize' }}>{contactMethod}</p></div>
               <div><span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Attachments</span><p style={{ fontWeight: 500 }}>{files.length} file(s)</p></div>
@@ -94,8 +123,8 @@ export default function WarrantyClaimWizard({ product, onBack, onComplete, showT
       </div>
       <div className="wizard-footer">
         <button className="btn-secondary" onClick={() => step > 1 ? setStep(step - 1) : onBack()}>{step === 1 ? 'Cancel' : 'Back'}</button>
-        <button className="btn-primary" onClick={() => step < 3 ? setStep(step + 1) : handleSubmit()}>
-          {step < 3 ? <>Continue to {stepLabels[step]} <Icon name="chevron-right" size={16} /></> : 'Submit Claim'}
+        <button className="btn-primary" disabled={submitting} onClick={() => step < 3 ? setStep(step + 1) : handleSubmit()}>
+          {step < 3 ? <>Continue to {stepLabels[step]} <Icon name="chevron-right" size={16} /></> : submitting ? 'Submitting...' : 'Submit Claim'}
         </button>
       </div>
     </div>

@@ -1,17 +1,16 @@
 import { useState, useEffect, useRef, Fragment } from 'react';
 import Icon from '../components/ui/Icon';
-import { MOCK_TICKETS } from '../data/tickets';
 
-export default function TicketsPage({ onSelectTicket }) {
+export default function TicketsPage({ tickets, loading, onSelectTicket }) {
   const [filter, setFilter] = useState('All');
   const filters = [
-    { label: 'All', count: MOCK_TICKETS.length },
-    { label: 'In Progress', count: MOCK_TICKETS.filter(t => t.status === 'In Progress').length },
-    { label: 'Open', count: MOCK_TICKETS.filter(t => t.status === 'Open').length },
-    { label: 'Resolved', count: MOCK_TICKETS.filter(t => t.status === 'Resolved').length },
-    { label: 'Closed', count: MOCK_TICKETS.filter(t => t.status === 'Closed').length },
+    { label: 'All', count: tickets.length },
+    { label: 'In Progress', count: tickets.filter(t => t.status === 'In Progress').length },
+    { label: 'Open', count: tickets.filter(t => t.status === 'Open').length },
+    { label: 'Resolved', count: tickets.filter(t => t.status === 'Resolved').length },
+    { label: 'Closed', count: tickets.filter(t => t.status === 'Closed').length },
   ];
-  const filtered = filter === 'All' ? MOCK_TICKETS : MOCK_TICKETS.filter(t => t.status === filter);
+  const filtered = filter === 'All' ? tickets : tickets.filter(t => t.status === filter);
   const listRef = useRef(null);
 
   useEffect(() => {
@@ -50,8 +49,11 @@ export default function TicketsPage({ onSelectTicket }) {
           </button>
         ))}
       </div>
+      {loading && (
+        <div className="empty-state"><p>Loading tickets...</p></div>
+      )}
       <div ref={listRef}>
-        {filtered.map(ticket => (
+        {!loading && filtered.map(ticket => (
           <div key={ticket.id} className="ticket-card" onClick={() => onSelectTicket(ticket)}>
             <div className={`ticket-status-dot ${ticket.status.toLowerCase().replace(' ', '-')}`}></div>
             <div className="ticket-card-body">
@@ -69,7 +71,7 @@ export default function TicketsPage({ onSelectTicket }) {
           </div>
         ))}
       </div>
-      {filtered.length === 0 && <div className="empty-state"><p>No tickets found for this filter.</p></div>}
+      {!loading && filtered.length === 0 && <div className="empty-state"><p>No tickets found for this filter.</p></div>}
 
       <div style={{ marginTop: 32, padding: '24px 0', borderTop: '1px solid var(--border)' }}>
         <h3 style={{ textAlign: 'center', marginBottom: 16, color: 'var(--text-secondary)', fontSize: 14 }}>Track Your Ticket in 4 Simple Steps</h3>

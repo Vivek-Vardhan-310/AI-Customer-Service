@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Icon from './ui/Icon';
 
-export default function TopAppBar({ onMenuClick, onLogout, onOpenProfile, onOpenSettings }) {
+export default function TopAppBar({ onMenuClick, onLogout, onOpenProfile, onOpenSettings, profile }) {
   const [showNotif, setShowNotif] = useState(false);
   const [bellRing, setBellRing] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -50,8 +50,10 @@ export default function TopAppBar({ onMenuClick, onLogout, onOpenProfile, onOpen
         </div>
         <div className="dropdown-wrap" ref={profileRef}>
           <button className="topbar-avatar" onClick={() => setShowProfile(!showProfile)}>
-            <div className="topbar-avatar-circle">A</div>
-            <span className="topbar-avatar-name">Alex</span>
+            <div className="topbar-avatar-circle">
+              {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <span className="topbar-avatar-name">{profile?.full_name || 'User'}</span>
             <Icon name="chevron-down" size={14} />
           </button>
           {showProfile && (

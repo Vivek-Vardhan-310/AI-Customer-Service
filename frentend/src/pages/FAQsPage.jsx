@@ -1,7 +1,18 @@
+import { useState, useEffect } from 'react';
 import Icon from '../components/ui/Icon';
-import { FAQ_CATEGORIES } from '../data/faq';
+import { fetchFAQCategories } from '../lib/supabase';
 
 export default function FAQsPage({ onSelectCategory, onChat, showToast }) {
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchFAQCategories().then(data => {
+      setCategories(data);
+      setLoading(false);
+    });
+  }, []);
+
   return (
     <div>
       <div className="faqs-hero">
@@ -16,8 +27,9 @@ export default function FAQsPage({ onSelectCategory, onChat, showToast }) {
         <span className="search-icon"><Icon name="search" size={18} /></span>
         <input type="text" placeholder="Search FAQs..." />
       </div>
+      {loading && <div className="empty-state"><p>Loading FAQ categories...</p></div>}
       <div className="faqs-category-grid">
-        {FAQ_CATEGORIES.map((cat, i) => (
+        {categories.map((cat, i) => (
           <div key={cat.slug} className={`faq-category-card animate-in stagger-${i + 1}`} onClick={() => onSelectCategory(cat)}>
             <div className="faq-category-icon"><Icon name={cat.icon} size={20} /></div>
             <span className="faq-category-name">{cat.name}</span>

@@ -1,10 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '../components/ui/Icon';
-import { FAQ_ARTICLES } from '../data/faq';
+import { fetchFAQArticles } from '../lib/supabase';
 
 export default function FAQCategoryView({ category, onBack, onChat, showToast }) {
   const [openId, setOpenId] = useState(null);
-  const articles = FAQ_ARTICLES[category.slug] || [];
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchFAQArticles(category.slug).then(data => {
+      setArticles(data);
+      setLoading(false);
+    });
+  }, [category.slug]);
 
   return (
     <div>
@@ -18,6 +26,7 @@ export default function FAQCategoryView({ category, onBack, onChat, showToast })
         </div>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Find solutions to common {category.name.toLowerCase()} related issues.</p>
       </div>
+      {loading && <div className="empty-state"><p>Loading articles...</p></div>}
       <div className="faq-list">
         {articles.map(article => (
           <div key={article.id} className={`faq-item ${openId === article.id ? 'open' : ''}`}>
@@ -28,7 +37,7 @@ export default function FAQCategoryView({ category, onBack, onChat, showToast })
             {openId === article.id && (
               <div className="faq-answer">
                 {article.a.split('\n').map((line, i) => {
-                  if (line.startsWith('ΓÇó')) return <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, paddingLeft: 8 }}><span>•</span><span>{line.substring(2)}</span></div>;
+                  if (line.startsWith('•')) return <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, paddingLeft: 8 }}><span>•</span><span>{line.substring(2)}</span></div>;
                   return <p key={i} style={{ marginBottom: 6 }}>{line}</p>;
                 })}
                 <div className="faq-feedback">
@@ -40,7 +49,7 @@ export default function FAQCategoryView({ category, onBack, onChat, showToast })
             )}
           </div>
         ))}
-        {articles.length === 0 && <div className="empty-state"><p>No articles found for this category yet.</p></div>}
+        {!loading && articles.length === 0 && <div className="empty-state"><p>No articles found for this category yet.</p></div>}
       </div>
       <div className="faqs-help-banner" style={{ marginTop: 32 }}>
         <div className="help-text">

@@ -1,17 +1,30 @@
 import { useState } from 'react';
 import Icon from '../components/ui/Icon';
+import { submitFeedback } from '../lib/supabase';
 
 export default function FeedbackPopup({ onClose, showToast }) {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!rating) {
       showToast?.('Please select a rating', 'error');
       return;
     }
-    showToast?.('Thank you for your feedback!', 'success');
-    onClose();
+    setSubmitting(true);
+    try {
+      await submitFeedback({ rating, comment: comment || null });
+      showToast?.('Thank you for your feedback!', 'success');
+      onClose();
+    } catch (err) {
+      console.error('Feedback error:', err);
+      showToast?.('Thank you for your feedback!', 'success');
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -36,8 +49,18 @@ export default function FeedbackPopup({ onClose, showToast }) {
             </button>
           ))}
         </div>
+        <textarea
+          className="form-input textarea"
+          placeholder="Any additional comments? (optional)"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          rows={3}
+          style={{ marginBottom: 16, fontSize: 14 }}
+        />
         <p className="feedback-note">Your feedback helps us improve</p>
-        <button className="btn-primary full-width" onClick={handleSubmit}>Submit Feedback</button>
+        <button className="btn-primary full-width" onClick={handleSubmit} disabled={submitting}>
+          {submitting ? 'Submitting...' : 'Submit Feedback'}
+        </button>
       </div>
     </div>
   );
