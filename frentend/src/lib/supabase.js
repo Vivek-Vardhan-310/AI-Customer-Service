@@ -41,8 +41,8 @@ export async function fetchProducts() {
   if (!user) return [];
 
   const { data, error } = await supabase
-    .from('products')
-    .select('*')
+    .from('user_products')
+    .select('*, product:product_catalog(name, model, image_url)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -60,9 +60,11 @@ export async function fetchProducts() {
 
     return {
       ...p,
-      // Map DB fields to the shape the UI components expect
+      // Flatten catalog fields into the shape the UI components expect
+      name: p.product?.name || p.nickname || 'Unknown Product',
+      model: p.product?.model || '',
       serial: p.serial_number,
-      image: p.image_url,
+      image: p.product?.image_url,
       purchaseDate: p.purchase_date ? new Date(p.purchase_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
       warranty: warrantyStatus,
       warrantyDays,
@@ -86,7 +88,7 @@ export async function fetchTickets() {
     .from('tickets')
     .select(`
       *,
-      product:products(id, name, serial_number, image_url),
+      user_product:user_products(id, serial_number, product:product_catalog(name, image_url)),
       timeline:ticket_timeline(id, step_name, step_date, is_done, sort_order),
       updates:ticket_updates(id, update_text, author, created_at)
     `)
@@ -114,9 +116,9 @@ export async function fetchTickets() {
 
     return {
       ...t,
-      product: t.product?.name || 'Unknown Product',
-      productImage: t.product?.image_url || 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=200',
-      productSerial: t.product?.serial_number || 'N/A',
+      product: t.user_product?.product?.name || 'Unknown Product',
+      productImage: t.user_product?.product?.image_url || 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=200',
+      productSerial: t.user_product?.serial_number || 'N/A',
       title: t.title,
       created: new Date(t.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
       updated: new Date(t.updated_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
@@ -138,7 +140,7 @@ export async function createTicket({ productId, title, category, description, co
     .insert({
       id: ticketId,
       user_id: user.id,
-      product_id: productId,
+      user_product_id: productId,
       title,
       category,
       status: 'Open',
