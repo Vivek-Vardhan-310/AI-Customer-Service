@@ -16,8 +16,20 @@ class Ticket(BaseModel):
     date: str
     description: str
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class UserContext(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    products: Optional[List[dict]] = None
+
 class ChatRequest(BaseModel):
     message: str
+    history: Optional[List[ChatMessage]] = None
+    user_context: Optional[UserContext] = None
 
 class FeedbackCreate(BaseModel):
     ticket_id: Optional[str]

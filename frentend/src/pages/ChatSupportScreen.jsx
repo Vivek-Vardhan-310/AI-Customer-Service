@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Icon from '../components/ui/Icon';
 import { apiUrl } from '../config';
+import { fetchProfile, fetchProducts } from '../lib/supabase';
 
 export default function ChatSupportScreen({ onClose, onEndSession }) {
   const [messages, setMessages] = useState([
@@ -8,8 +9,36 @@ export default function ChatSupportScreen({ onClose, onEndSession }) {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [userContext, setUserContext] = useState(null);
   const chatEndRef = useRef(null);
   const quickReplies = ['Check Warranty Status', 'Track My Ticket', 'Network / Wi-Fi Issues', 'Laptop Performance Issues', 'Drivers & Downloads'];
+
+  // Fetch user context on mount
+  useEffect(() => {
+    const loadContext = async () => {
+      try {
+        const [profile, products] = await Promise.all([fetchProfile(), fetchProducts()]);
+        const ctx = {
+          name: profile?.full_name || null,
+          email: profile?.email || null,
+          phone: profile?.phone || null,
+          products: (products || []).map(p => ({
+            name: p.name,
+            model: p.model,
+            serial: p.serial,
+            warranty: p.warranty,
+            warrantyDays: p.warrantyDays,
+            amc: p.amc,
+            amcDays: p.amcDays,
+          })),
+        };
+        setUserContext(ctx);
+      } catch (e) {
+        console.error('Failed to load user context for chat:', e);
+      }
+    };
+    loadContext();
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -24,10 +53,20 @@ export default function ChatSupportScreen({ onClose, onEndSession }) {
     setLoading(true);
     try {
       const token = localStorage.getItem('supabase_token');
+
+      // Build conversation history from existing messages (excluding the initial greeting)
+      const history = messages
+        .filter((_, i) => i > 0) // skip initial greeting
+        .map(msg => ({ role: msg.role, content: msg.content }));
+
       const res = await fetch(`${apiUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({
+          message: text,
+          history: history,
+          user_context: userContext,
+        })
       });
       const data = await res.json();
       setMessages(prev => [...prev, { role: 'assistant', content: data.reply || JSON.stringify(data), time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) }]);

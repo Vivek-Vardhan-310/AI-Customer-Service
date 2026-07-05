@@ -11,12 +11,48 @@ from ..services.ai import groq_service, split_sentences
 router = APIRouter(tags=["voice"])
 logger = logging.getLogger("voice_ws")
 
-VOICE_SYSTEM_PROMPT = (
+VOICE_SYSTEM_PROMPT_BASE = (
     "You are a friendly, concise voice assistant for LaptopCare customer support. "
     "Keep responses short (1-3 sentences) since you are speaking out loud. "
     "Be helpful with laptop issues, warranty questions, and troubleshooting. "
     "Don't use markdown formatting, bullet points, or special characters — speak naturally."
 )
+
+
+def _build_voice_system_prompt(user_context=None):
+    """Build a personalized voice system prompt with user context."""
+    prompt = VOICE_SYSTEM_PROMPT_BASE
+
+    if user_context:
+        context_parts = ["\n\nCustomer Context:"]
+        if user_context.get("name"):
+            context_parts.append(f"Name: {user_context['name']}.")
+        if user_context.get("email"):
+            context_parts.append(f"Email: {user_context['email']}.")
+        if user_context.get("phone"):
+            context_parts.append(f"Phone: {user_context['phone']}.")
+
+        products = user_context.get("products", [])
+        if products:
+            context_parts.append("Registered Products:")
+            for i, prod in enumerate(products, 1):
+                name = prod.get('name', 'Unknown')
+                serial = prod.get('serial', 'N/A')
+                warranty = prod.get('warranty', 'N/A')
+                warranty_days = prod.get('warrantyDays', 'N/A')
+                amc = prod.get('amc', 'N/A')
+                amc_days = prod.get('amcDays', 'N/A')
+                model = prod.get('model', '')
+                context_parts.append(
+                    f"  {i}. {name} (Model: {model}, Serial: {serial}), "
+                    f"Warranty: {warranty} ({warranty_days} days left), "
+                    f"AMC: {amc} ({amc_days} days left)"
+                )
+
+        prompt += " ".join(context_parts)
+
+    return prompt
+
 
 @router.post("/api/voice", response_model=VoiceChatResponse)
 async def voice_chat(req: VoiceChatRequest):
@@ -62,10 +98,12 @@ async def voice_websocket(websocket: WebSocket):
     await websocket.accept()
     logger.info("Voice WebSocket connected")
 
+    # Start with base system prompt; will be updated when user_context arrives
     conversation_history: list[dict] = [
-        {"role": "system", "content": VOICE_SYSTEM_PROMPT}
+        {"role": "system", "content": VOICE_SYSTEM_PROMPT_BASE}
     ]
 
+    user_context_received = False
     abort_flag = False
 
     async def process_audio(audio_bytes: bytes):
@@ -223,6 +261,14 @@ async def voice_websocket(websocket: WebSocket):
                             await current_task
                         except (asyncio.CancelledError, Exception):
                             pass
+
+                elif data.get("type") == "user_context" and not user_context_received:
+                    # Update the system prompt with user context
+                    user_context_received = True
+                    user_ctx = data.get("context", {})
+                    logger.info(f"Received user context for: {user_ctx.get('name', 'unknown')}")
+                    new_system_prompt = _build_voice_system_prompt(user_ctx)
+                    conversation_history[0] = {"role": "system", "content": new_system_prompt}
 
     except WebSocketDisconnect:
         logger.info("Voice WebSocket disconnected")

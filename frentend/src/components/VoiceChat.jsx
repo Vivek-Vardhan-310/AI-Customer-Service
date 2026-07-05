@@ -49,7 +49,7 @@ const STATE_LABELS = {
   [STATE.ERROR]: 'Connection error',
 };
 
-const VoiceChat = ({ token, onSessionComplete }) => {
+const VoiceChat = ({ token, onSessionComplete, userContext }) => {
   // ── State ────────────────────────────────────────────────────────────
   const [conversationState, setConversationState] = useState(STATE.CONNECTING);
   const [messages, setMessages] = useState([]); // {role: 'user'|'assistant', text: string}
@@ -294,6 +294,12 @@ const VoiceChat = ({ token, onSessionComplete }) => {
         if (isCurrent) {
           setConversationState(STATE.IDLE);
           setError(null);
+
+          // Send user context to backend for personalized system prompt
+          if (userContext) {
+            ws.send(JSON.stringify({ type: 'user_context', context: userContext }));
+            console.log('[VoiceChat] Sent user context to backend');
+          }
         }
       };
 
