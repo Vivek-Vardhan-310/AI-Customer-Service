@@ -33,7 +33,6 @@ import ChatSupportScreen from './pages/ChatSupportScreen';
 import VoiceSupportScreen from './pages/VoiceSupportScreen';
 import PostSupportHub from './pages/PostSupportHub';
 import FeedbackPopup from './pages/FeedbackPopup';
-import SettingsPage from './pages/SettingsPage';
 import SettingsProfilePage from './pages/SettingsProfilePage';
 
 function App() {
@@ -63,7 +62,6 @@ function App() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
   const [showProfilePage, setShowProfilePage] = useState(false);
-  const [showSettingsPage, setShowSettingsPage] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showTelecomModal, setShowTelecomModal] = useState(false);
@@ -184,14 +182,6 @@ function App() {
 
   const openProfilePage = () => {
     setShowProfilePage(true);
-    setShowSettingsPage(false);
-    setActiveTab('home');
-    setCurrentView(null);
-  };
-
-  const openSettingsPage = () => {
-    setShowSettingsPage(true);
-    setShowProfilePage(false);
     setActiveTab('home');
     setCurrentView(null);
   };
@@ -218,7 +208,6 @@ function App() {
   // Render current view content
   const renderContent = () => {
     if (showProfilePage) return <SettingsProfilePage onClose={() => setShowProfilePage(false)} profile={userProfile} refreshProfile={refreshProfile} showToast={showToast} />;
-    if (showSettingsPage) return <SettingsPage onClose={() => setShowSettingsPage(false)} />;
     if (activeTab === 'home' && !currentView) {
       return <HomePage onNavigate={handleTabChange} profile={userProfile} />;
     }
@@ -253,7 +242,7 @@ function App() {
 
   return (
     <div className="app-layout">
-      <TopAppBar profile={userProfile} onMenuClick={() => setShowDrawer(true)} onLogout={handleLogout} onOpenProfile={openProfilePage} onOpenSettings={openSettingsPage} />
+      <TopAppBar profile={userProfile} onMenuClick={() => setShowDrawer(true)} onLogout={handleLogout} onOpenProfile={openProfilePage} />
       <main className="main-content">
         <div key={pageKey} className="page-wrap fade-up">
           {renderContent()}

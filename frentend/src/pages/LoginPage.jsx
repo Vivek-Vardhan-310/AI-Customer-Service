@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Icon from '../components/ui/Icon';
 
 export default function LoginPage({ onLogin, onSwitchToSignup, loading, showToast }) {
-  const [tab, setTab] = useState('customer');
+  const role = 'customer';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,7 +23,7 @@ export default function LoginPage({ onLogin, onSwitchToSignup, loading, showToas
       showToast?.(msg, 'error');
       return;
     }
-    await onLogin({ email, role: tab, password });
+    await onLogin({ email, role, password });
   };
 
   return (
@@ -50,10 +50,6 @@ export default function LoginPage({ onLogin, onSwitchToSignup, loading, showToas
         <div className="login-card">
           <h2 className="login-card-title">Welcome back</h2>
           <p className="login-card-subtitle">Sign in to your support account</p>
-          <div className="login-tabs">
-            <button className={`login-tab ${tab === 'customer' ? 'active' : ''}`} onClick={() => setTab('customer')} disabled={loading}>Customer</button>
-            <button className={`login-tab ${tab === 'admin' ? 'active' : ''}`} onClick={() => setTab('admin')} disabled={loading}>Admin</button>
-          </div>
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-group">
               <label className="form-label">Email address</label>

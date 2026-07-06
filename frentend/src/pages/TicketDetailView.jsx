@@ -115,7 +115,6 @@ export default function TicketDetailView({ ticket, onBack, onChat, showToast }) 
 
       <div className="ticket-detail-actions">
         <button className="btn-secondary flex-1" onClick={onChat}><Icon name="message-circle" size={16} /><span>Chat</span></button>
-        <button className="btn-secondary flex-1"><Icon name="alert-triangle" size={16} /><span>Escalate</span></button>
         <button className="btn-primary btn-danger flex-1"><Icon name="x" size={16} /><span>Cancel Ticket</span></button>
       </div>
     </div>

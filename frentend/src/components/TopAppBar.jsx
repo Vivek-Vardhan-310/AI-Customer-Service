@@ -1,16 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import Icon from './ui/Icon';
 
-export default function TopAppBar({ onMenuClick, onLogout, onOpenProfile, onOpenSettings, profile }) {
-  const [showNotif, setShowNotif] = useState(false);
-  const [bellRing, setBellRing] = useState(false);
+export default function TopAppBar({ onMenuClick, onLogout, onOpenProfile, profile }) {
   const [showProfile, setShowProfile] = useState(false);
-  const notifRef = useRef(null);
   const profileRef = useRef(null);
 
   useEffect(() => {
     const handler = (e) => {
-      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotif(false);
       if (profileRef.current && !profileRef.current.contains(e.target)) setShowProfile(false);
     };
     document.addEventListener('mousedown', handler);
@@ -30,24 +26,6 @@ export default function TopAppBar({ onMenuClick, onLogout, onOpenProfile, onOpen
         </div>
       </div>
       <div className="topbar-right">
-        <div className="dropdown-wrap" ref={notifRef}>
-          <button className={`topbar-notif-btn ${bellRing ? 'bell-ring' : ''}`} onClick={() => {
-            const next = !showNotif;
-            setShowNotif(next);
-            if (next) { setBellRing(true); setTimeout(() => setBellRing(false), 900); }
-          }}>
-            <Icon name="bell" size={20} />
-            <span className="topbar-notif-badge">3</span>
-          </button>
-          {showNotif && (
-            <div className="dropdown-menu notif-dropdown">
-              <div className="dropdown-header">Notifications</div>
-              <div className="notif-item"><div className="notif-dot blue"></div><div><p className="notif-text">Ticket CS-8992 has been updated</p><span className="notif-time">2 hours ago</span></div></div>
-              <div className="notif-item"><div className="notif-dot green"></div><div><p className="notif-text">Warranty claim approved</p><span className="notif-time">5 hours ago</span></div></div>
-              <div className="notif-item"><div className="notif-dot amber"></div><div><p className="notif-text">AMC renewal reminder — 54 days left</p><span className="notif-time">1 day ago</span></div></div>
-            </div>
-          )}
-        </div>
         <div className="dropdown-wrap" ref={profileRef}>
           <button className="topbar-avatar" onClick={() => setShowProfile(!showProfile)}>
             <div className="topbar-avatar-circle">
@@ -59,7 +37,6 @@ export default function TopAppBar({ onMenuClick, onLogout, onOpenProfile, onOpen
           {showProfile && (
             <div className="dropdown-menu">
               <div className="dropdown-item" onClick={() => { onOpenProfile?.(); setShowProfile(false); }}><Icon name="user" size={16} /><span>My Profile</span></div>
-              <div className="dropdown-item" onClick={() => { onOpenSettings?.(); setShowProfile(false); }}><Icon name="settings" size={16} /><span>Settings</span></div>
               <div className="dropdown-divider"></div>
               <div className="dropdown-item danger" onClick={() => { setShowProfile(false); onLogout?.(); }}><Icon name="log-out" size={16} /><span>Sign out</span></div>
             </div>
