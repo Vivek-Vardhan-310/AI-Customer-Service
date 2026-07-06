@@ -10,6 +10,8 @@ load_dotenv(BASE_DIR / ".env")
 
 from .services.ai import groq_service
 from . import db
+from config import validate_config
+from database import init_db
 
 # Import routers
 from .routers import status, tickets, chat, feedback, voice
@@ -39,6 +41,10 @@ app.add_middleware(
 )
 
 async def _startup():
+    # Validate environment variables for Twilio and Gemini
+    validate_config()
+    # Init SQLAlchemy DB for call logs
+    init_db()
     # attempt DB connection if DATABASE_URL provided
     await db.connect_db()
     # Initialize the Groq Client Service
