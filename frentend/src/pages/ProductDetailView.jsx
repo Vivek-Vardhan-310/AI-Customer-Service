@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import Icon from '../components/ui/Icon';
 import { useInView, useRafCount } from '../hooks/animations';
 
-export default function ProductDetailView({ product, onBack, onWarrantyClaim, onRenewAMC }) {
+export default function ProductDetailView({ product, onBack }) {
   const warrantyPercent = Math.round((1 - product.warrantyDays / product.warrantyTotal) * 100);
   const amcPercent = product.amcDays > 0 ? Math.round((1 - product.amcDays / product.amcTotal) * 100) : 0;
 
@@ -64,12 +64,12 @@ export default function ProductDetailView({ product, onBack, onWarrantyClaim, on
           </div>
         </div>
       </div>
-      <h3 className="quick-actions-title">Quick Actions</h3>
-      <div className="quick-actions-list">
-        <div className="quick-action-item" onClick={onWarrantyClaim}><Icon name="upload" size={18} /><span>Raise Warranty Claim</span></div>
-        <div className="quick-action-item"><Icon name="activity" size={18} /><span>Raise AMC Service Request</span></div>
-        <div className="quick-action-item" onClick={onRenewAMC}><Icon name="shield" size={18} /><span>Renew AMC</span></div>
-        <div className="quick-action-item"><Icon name="alert-triangle" size={18} /><span>Raise General Complaint</span></div>
+      <h3 className="quick-actions-title">AI Troubleshooting</h3>
+      <div className="quick-actions-list" style={{ marginBottom: 24 }}>
+        <div className="quick-action-item" style={{ cursor: 'default' }}>
+          <Icon name="activity" size={18} />
+          <span>Use AI chat support for guided troubleshooting</span>
+        </div>
       </div>
     </div>
   );

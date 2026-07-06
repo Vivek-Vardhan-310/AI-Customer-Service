@@ -23,8 +23,8 @@ import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
 import MyProductsPage from './pages/MyProductsPage';
 import ProductDetailView from './pages/ProductDetailView';
-import WarrantyClaimWizard from './pages/WarrantyClaimWizard';
-import RenewAMCWizard from './pages/RenewAMCWizard';
+import CreateTicketWizard from './pages/CreateTicketWizard';
+
 import TicketsPage from './pages/TicketsPage';
 import TicketDetailView from './pages/TicketDetailView';
 import FAQsPage from './pages/FAQsPage';
@@ -121,6 +121,7 @@ function App() {
     setSelectedProduct(null);
     setSelectedTicket(null);
     setSelectedFAQCategory(null);
+    if (tab === 'create-ticket') setCurrentView(null);
   };
 
   // Supabase session check
@@ -212,16 +213,21 @@ function App() {
       return <HomePage onNavigate={handleTabChange} profile={userProfile} />;
     }
     if (activeTab === 'products') {
-      if (currentView === 'warranty-claim' && selectedProduct) {
-        return <WarrantyClaimWizard product={selectedProduct} onBack={() => setCurrentView('detail')} onComplete={(id) => { setCurrentView(null); setActiveTab('tickets'); refreshTickets(); showToast('Ticket ' + id + ' created!', 'success'); }} showToast={showToast} />;
-      }
-      if (currentView === 'renew-amc' && selectedProduct) {
-        return <RenewAMCWizard product={selectedProduct} onBack={() => setCurrentView('detail')} showToast={showToast} />;
-      }
       if (currentView === 'detail' && selectedProduct) {
-        return <ProductDetailView product={selectedProduct} onBack={() => { setCurrentView(null); setSelectedProduct(null); }} onWarrantyClaim={() => setCurrentView('warranty-claim')} onRenewAMC={() => setCurrentView('renew-amc')} />;
+        return <ProductDetailView product={selectedProduct} onBack={() => { setCurrentView(null); setSelectedProduct(null); }} />;
       }
       return <MyProductsPage products={products} loading={dataLoading} onSelectProduct={(p) => { setSelectedProduct(p); setCurrentView('detail'); }} />;
+    }
+    if (activeTab === 'create-ticket') {
+      return (
+        <CreateTicketWizard
+          products={products}
+          showToast={showToast}
+          refreshTickets={refreshTickets}
+          onBack={() => { setCurrentView(null); }}
+          onComplete={(id) => { setCurrentView(null); setActiveTab('tickets'); showToast('Ticket ' + id + ' created!', 'success'); }}
+        />
+      );
     }
     if (activeTab === 'tickets') {
       if (currentView === 'detail' && selectedTicket) {
@@ -255,7 +261,8 @@ function App() {
       {showSupportHub && <SupportHubModal onClose={() => setShowSupportHub(false)} onChat={() => { setShowSupportHub(false); setShowChat(true); }} onVoice={() => { setShowSupportHub(false); setShowVoice(true); }} />}
       {showChat && <ChatSupportScreen onClose={() => setShowChat(false)} onEndSession={handleEndSession} />}
       {showVoice && <VoiceSupportScreen onClose={() => setShowVoice(false)} onEndSession={handleEndSession} />}
-      {showPostSupport && <PostSupportHub onClose={() => { setShowPostSupport(false); setActiveTab('home'); setCurrentView(null); }} onRaiseComplaint={() => { setShowPostSupport(false); setActiveTab('tickets'); }} onFeedback={() => { setShowPostSupport(false); setShowFeedback(true); }} onRegisterProduct={() => { setShowPostSupport(false); setActiveTab('products'); }} />}
+      {showPostSupport && <PostSupportHub onClose={() => { setShowPostSupport(false); setActiveTab('home'); setCurrentView(null); }} onRaiseComplaint={() => { setShowPostSupport(false); setActiveTab('create-ticket'); }} onFeedback={() => { setShowPostSupport(false); setShowFeedback(true); }} onRegisterProduct={() => { setShowPostSupport(false); setActiveTab('products'); }} />}
+
       {showFeedback && <FeedbackPopup onClose={() => setShowFeedback(false)} showToast={showToast} />}
       {showDrawer && <HamburgerDrawer
         onClose={() => setShowDrawer(false)}
