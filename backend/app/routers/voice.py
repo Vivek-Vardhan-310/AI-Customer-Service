@@ -8,9 +8,19 @@ import json
 import re
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl
 from pydantic import BaseModel
-from twilio.base.exceptions import TwilioRestException
-from twilio.rest import Client
-from twilio.twiml.voice_response import VoiceResponse as TwilioVoiceResponse
+
+try:
+    from twilio.base.exceptions import TwilioRestException
+    from twilio.rest import Client
+    from twilio.twiml.voice_response import VoiceResponse as TwilioVoiceResponse
+except ImportError as exc:  # pragma: no cover - runtime dependency guard
+    TwilioRestException = Exception
+    Client = None
+    TwilioVoiceResponse = None
+    TWILIO_IMPORT_ERROR = exc
+else:
+    TWILIO_IMPORT_ERROR = None
+
 from ..dependencies import require_user
 from ..schemas import VoiceChatRequest, VoiceChatResponse
 from ..services.ai import groq_service, split_sentences
@@ -294,12 +304,18 @@ TWILIO_CALLBACK_URL = os.environ.get("TWILIO_CALLBACK_URL") or os.environ.get("V
 DEFAULT_PHONE_COUNTRY_CODE = os.environ.get("DEFAULT_PHONE_COUNTRY_CODE", "91")
 
 if not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER):
-    raise ValueError(
-        "Twilio configuration is missing. Set TWILIO_ACCOUNT_SID, "
-        "TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER environment variables."
+    logger.warning(
+        "Twilio configuration is incomplete. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER "
+        "to enable outbound calls."
     )
 
-_twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+if Client is None:
+    logger.warning("Twilio package is not installed; outbound calls are disabled. %s", TWILIO_IMPORT_ERROR)
+    _twilio_client = None
+else:
+    _twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN) if (
+        TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER
+    ) else None
 
 
 def _is_public_callback_url(url: str) -> bool:
