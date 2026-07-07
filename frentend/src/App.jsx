@@ -3,7 +3,7 @@ import './App.css';
 import './animations.css';
 
 // Config
-import { supabase } from './config';
+import { apiUrl, supabase } from './config';
 
 // Supabase data layer
 import { fetchProfile, fetchProducts as fetchProductsDB, fetchTickets as fetchTicketsDB } from './lib/supabase';
@@ -180,6 +180,48 @@ function App() {
     setTickets([]);
   };
 
+  const handleVoiceCall = async () => {
+    if (!userProfile?.phone) {
+      showToast('No phone number available on your profile.', 'error');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('supabase_token');
+      const response = await fetch(`${apiUrl}/api/voice/call`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: 'Bearer ' + token } : {}),
+        },
+        body: JSON.stringify({
+          phone: userProfile.phone,
+          text: 'Hello from LaptopCare. Your AI support call is now active.',
+        }),
+      });
+
+      if (!response.ok) {
+        const responseText = await response.text().catch(() => null);
+        let message = 'Unable to place the call at this time.';
+        try {
+          const errorData = responseText ? JSON.parse(responseText) : null;
+          message = errorData?.detail || response.statusText || message;
+        } catch {
+          message = responseText || response.statusText || message;
+        }
+        console.error('Voice call failed', response.status, responseText);
+        showToast(message, 'error');
+        return;
+      }
+
+      const data = await response.json();
+      showToast(`Calling ${data.to}. Please answer your phone.`, 'success');
+    } catch (error) {
+      console.error('Voice call error:', error);
+      showToast('Failed to start the call.', 'error');
+    }
+  };
+
   const openProfilePage = () => {
     setShowProfilePage(true);
     setActiveTab('home');
@@ -209,7 +251,7 @@ function App() {
   const renderContent = () => {
     if (showProfilePage) return <SettingsProfilePage onClose={() => setShowProfilePage(false)} profile={userProfile} refreshProfile={refreshProfile} showToast={showToast} />;
     if (activeTab === 'home' && !currentView) {
-      return <HomePage onNavigate={handleTabChange} profile={userProfile} />;
+      return <HomePage onNavigate={handleTabChange} onCall={handleVoiceCall} profile={userProfile} />;
     }
     if (activeTab === 'products') {
       if (currentView === 'warranty-claim' && selectedProduct) {

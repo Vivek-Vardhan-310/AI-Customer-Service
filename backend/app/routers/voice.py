@@ -1,10 +1,17 @@
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Response, Form, Request, Depends
 import base64
 from io import BytesIO
 import os
 import asyncio
 import logging
 import json
+import re
+from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl
+from pydantic import BaseModel
+from twilio.base.exceptions import TwilioRestException
+from twilio.rest import Client
+from twilio.twiml.voice_response import VoiceResponse as TwilioVoiceResponse
+from ..dependencies import require_user
 from ..schemas import VoiceChatRequest, VoiceChatResponse
 from ..services.ai import groq_service, split_sentences
 
@@ -278,3 +285,181 @@ async def voice_websocket(websocket: WebSocket):
         if current_task and not current_task.done():
             current_task.cancel()
         logger.info("Voice WebSocket session ended")
+
+
+TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
+TWILIO_PHONE_NUMBER = os.environ.get("TWILIO_PHONE_NUMBER")
+TWILIO_CALLBACK_URL = os.environ.get("TWILIO_CALLBACK_URL") or os.environ.get("VOICE_CALLBACK_URL")
+DEFAULT_PHONE_COUNTRY_CODE = os.environ.get("DEFAULT_PHONE_COUNTRY_CODE", "91")
+
+if not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER):
+    raise ValueError(
+        "Twilio configuration is missing. Set TWILIO_ACCOUNT_SID, "
+        "TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER environment variables."
+    )
+
+_twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+
+def _is_public_callback_url(url: str) -> bool:
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    hostname = parsed.hostname or ""
+    if hostname in {"localhost", "127.0.0.1", "::1"}:
+        return False
+    return True
+
+
+def normalize_phone_number(phone: str) -> str:
+    raw = str(phone or "").strip()
+    if not raw:
+        raise HTTPException(status_code=422, detail="Phone number is required")
+
+    if raw.startswith("+"):
+        digits = "+" + re.sub(r"[^0-9]", "", raw)
+        return digits
+
+    digits = re.sub(r"[^0-9]", "", raw)
+    if not digits:
+        raise HTTPException(status_code=422, detail="Phone number is invalid")
+
+    if len(digits) == 10:
+        normalized = f"+{DEFAULT_PHONE_COUNTRY_CODE}{digits}"
+        logger.info(f"Normalized local phone {raw} to {normalized}")
+        return normalized
+    if len(digits) == 11 and digits.startswith("0"):
+        normalized = f"+{DEFAULT_PHONE_COUNTRY_CODE}{digits[1:]}"
+        logger.info(f"Normalized local phone {raw} to {normalized}")
+        return normalized
+    if len(digits) == 12 and digits.startswith(DEFAULT_PHONE_COUNTRY_CODE):
+        normalized = f"+{digits}"
+        logger.info(f"Normalized phone {raw} to {normalized}")
+        return normalized
+
+    normalized = f"+{digits}"
+    logger.info(f"Normalized fallback phone {raw} to {normalized}")
+    return normalized
+
+
+def get_twiml_url(request: Request) -> str | None:
+    if TWILIO_CALLBACK_URL:
+        callback_url = TWILIO_CALLBACK_URL.strip()
+        if _is_public_callback_url(callback_url):
+            logger.info(f"Using configured Twilio callback URL: {callback_url}")
+            return callback_url
+        logger.warning(
+            "Configured TWILIO_CALLBACK_URL is not a publicly reachable URL. "
+            "Falling back to inline TwiML."
+        )
+
+    callback_url = str(request.url_for("voice_webhook"))
+    if _is_public_callback_url(callback_url):
+        logger.info(f"Using generated Twilio callback URL: {callback_url}")
+        return callback_url
+
+    logger.warning(
+        "No public Twilio callback URL available. Twilio will use inline TwiML instead. "
+        "Set TWILIO_CALLBACK_URL to a public HTTPS endpoint if you want callback mode."
+    )
+    return None
+
+
+def make_call(to_number: str, twiml_url: str) -> str:
+    """Place an outbound Twilio call using a callback URL and return the Call SID."""
+    try:
+        call = _twilio_client.calls.create(
+            to=to_number,
+            from_=TWILIO_PHONE_NUMBER,
+            url=twiml_url,
+        )
+        logger.info(f"Twilio call created (callback URL mode): SID={call.sid} to={to_number}")
+        return call.sid
+    except TwilioRestException as exc:
+        logger.error(f"Twilio call failed: {exc}")
+        raise
+
+
+def make_call_with_twiml(to_number: str, twiml_text: str) -> str:
+    """Place an outbound Twilio call using inline TwiML and return the Call SID."""
+    twiml = TwilioVoiceResponse()
+    twiml.say(twiml_text, voice="alice", language="en-US")
+    try:
+        call = _twilio_client.calls.create(
+            to=to_number,
+            from_=TWILIO_PHONE_NUMBER,
+            twiml=str(twiml),
+        )
+        logger.info(f"Twilio call created (inline TwiML mode): SID={call.sid} to={to_number}")
+        return call.sid
+    except TwilioRestException as exc:
+        logger.error(f"Twilio call failed: {exc}")
+        raise
+
+
+class VoiceCallRequest(BaseModel):
+    phone: str
+    text: str = "Welcome to LaptopCare customer support."
+
+
+def generate_voice_response(text: str) -> Response:
+    """Generate TwiML that speaks the provided text."""
+    twiml = TwilioVoiceResponse()
+    twiml.say(text, voice="alice", language="en-US")
+    return Response(content=str(twiml), media_type="application/xml")
+
+
+@router.post("/api/voice/call")
+async def initiate_voice_call(
+    payload: VoiceCallRequest,
+    request: Request,
+    user=Depends(require_user)
+):
+    """Start an outbound Twilio call to the user's phone number."""
+    to_number = normalize_phone_number(payload.phone)
+
+    try:
+        twiml_url = get_twiml_url(request)
+        if twiml_url:
+            call_sid = make_call(to_number, twiml_url)
+            return {"call_sid": call_sid, "to": to_number, "twiml_url": twiml_url}
+
+        # No public callback URL is available; use inline TwiML directly.
+        logger.info("Using inline TwiML for outbound call because no public callback URL is configured.")
+        call_sid = make_call_with_twiml(to_number, payload.text)
+        return {"call_sid": call_sid, "to": to_number, "twiml": payload.text}
+    except TwilioRestException as exc:
+        detail = getattr(exc, 'msg', None) or str(exc)
+        code = getattr(exc, 'code', None)
+        if code == 21210:
+            detail = (
+                "The Twilio source phone number is not verified or not purchased for this account. "
+                f"Set TWILIO_PHONE_NUMBER to a Twilio-owned number verified on your account. "
+                "Trial accounts can only call verified numbers."
+            )
+        if code == 21408:
+            detail = (
+                "Your Twilio account is a trial account and cannot make outbound calls to this destination. "
+                "Upgrade your Twilio account or verify the destination phone number."
+            )
+        twilio_message = f"Twilio error{f' ({code})' if code else ''}: {detail}"
+        logger.error(f"Outbound Twilio call failed: {twilio_message}")
+        raise HTTPException(status_code=502, detail=twilio_message)
+    except Exception as exc:
+        logger.exception("Failed to initiate outbound call")
+        raise HTTPException(status_code=500, detail=f"Failed to start outbound call: {exc!r}")
+
+
+@router.api_route("/voice", methods=["GET", "POST"])
+async def voice_webhook(request: Request, text: str = Form("Welcome to LaptopCare customer support.")):
+    """Twilio webhook endpoint returning TwiML for an outbound or inbound call."""
+    if request.method == "GET":
+        text = request.query_params.get("text", text)
+
+    logger.info(f"Voice webhook called via {request.method} with text={text}")
+    try:
+        return generate_voice_response(text)
+    except Exception as exc:
+        logger.error(f"Failed to generate TwiML webhook response: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to generate TwiML response.")
