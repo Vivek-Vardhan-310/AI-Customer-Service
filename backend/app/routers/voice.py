@@ -419,6 +419,41 @@ class VoiceCallRequest(BaseModel):
     text: str = "Welcome to LaptopCare customer support."
 
 
+async def generate_call_intro_text(default_text: str = "Welcome to LaptopCare customer support.") -> str:
+    """Generate a short spoken greeting for outbound Twilio calls using the same Groq model."""
+    client = groq_service.get_client()
+    if client is None:
+        return default_text
+
+    try:
+        completion = await asyncio.to_thread(
+            client.chat.completions.create,
+            model=os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a friendly voice assistant for LaptopCare customer support. "
+                        "Reply with one short sentence that welcomes the caller and invites them to speak."
+                    ),
+                },
+                {"role": "user", "content": default_text},
+            ],
+            temperature=float(os.environ.get("GROQ_TEMPERATURE", "0.7")),
+            max_completion_tokens=int(os.environ.get("GROQ_MAX_COMPLETION_TOKENS", "256")),
+            top_p=float(os.environ.get("GROQ_TOP_P", "1")),
+            stream=False,
+            stop=None,
+        )
+        reply = groq_service.extract_reply(completion)
+        if reply:
+            return reply.strip()
+    except Exception as exc:
+        logger.warning(f"Failed to generate Twilio intro text: {exc}")
+
+    return default_text
+
+
 def generate_voice_response(text: str) -> Response:
     """Generate TwiML that speaks the provided text."""
     twiml = TwilioVoiceResponse()
@@ -443,8 +478,9 @@ async def initiate_voice_call(
 
         # No public callback URL is available; use inline TwiML directly.
         logger.info("Using inline TwiML for outbound call because no public callback URL is configured.")
-        call_sid = make_call_with_twiml(to_number, payload.text)
-        return {"call_sid": call_sid, "to": to_number, "twiml": payload.text}
+        intro_text = await generate_call_intro_text(payload.text)
+        call_sid = make_call_with_twiml(to_number, intro_text)
+        return {"call_sid": call_sid, "to": to_number, "twiml": intro_text}
     except TwilioRestException as exc:
         detail = getattr(exc, 'msg', None) or str(exc)
         code = getattr(exc, 'code', None)
@@ -465,6 +501,16 @@ async def initiate_voice_call(
     except Exception as exc:
         logger.exception("Failed to initiate outbound call")
         raise HTTPException(status_code=500, detail=f"Failed to start outbound call: {exc!r}")
+
+
+@router.post("/api/voice/call/")
+async def initiate_voice_call_with_slash(
+    payload: VoiceCallRequest,
+    request: Request,
+    user=Depends(require_user)
+):
+    """Compatibility alias for deployments that request the trailing-slash route."""
+    return await initiate_voice_call(payload, request, user)
 
 
 @router.api_route("/voice", methods=["GET", "POST"])
