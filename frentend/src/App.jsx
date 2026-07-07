@@ -3,7 +3,7 @@ import './App.css';
 import './animations.css';
 
 // Config
-import { supabase } from './config';
+import { supabase, apiUrl } from './config';
 
 // Supabase data layer
 import { cancelTicket, fetchProfile, fetchProducts as fetchProductsDB, fetchTickets as fetchTicketsDB } from './lib/supabase';
