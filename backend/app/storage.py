@@ -48,3 +48,14 @@ def find_item(collection: str, key: str, value):
         if item.get(key) == value:
             return item
     return None
+
+
+def delete_item(collection: str, key: str, value):
+    data = _read()
+    coll = data.setdefault(collection, [])
+    original_length = len(coll)
+    data[collection] = [item for item in coll if item.get(key) != value]
+    if len(data[collection]) != original_length:
+        _write(data)
+        return True
+    return False

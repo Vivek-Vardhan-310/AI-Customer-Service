@@ -43,3 +43,10 @@ async def create_ticket_db(ticket: dict):
             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
         ''', ticket['id'], ticket['product'], ticket['category'], ticket['status'], ticket['priority'], ticket['date'], ticket['description'], ticket.get('timeline', []), ticket.get('owner'))
         return ticket
+
+async def delete_ticket_db(ticket_id: str):
+    if not _pool:
+        return False
+    async with _pool.acquire() as conn:
+        result = await conn.execute('DELETE FROM tickets WHERE id = $1', ticket_id)
+        return result != 'DELETE 0'

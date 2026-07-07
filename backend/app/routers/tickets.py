@@ -47,3 +47,15 @@ def get_ticket(ticket_id: str):
     if not t:
         raise HTTPException(status_code=404, detail="Ticket not found")
     return t
+
+@router.delete("/tickets/{ticket_id}")
+async def delete_ticket(ticket_id: str):
+    deleted_from_db = False
+    if os.environ.get("DATABASE_URL"):
+        deleted_from_db = await db.delete_ticket_db(ticket_id)
+
+    deleted_from_storage = storage.delete_item("tickets", "id", ticket_id)
+    if not deleted_from_db and not deleted_from_storage:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    return {"deleted": True, "id": ticket_id}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Icon from '../components/ui/Icon';
 
-export default function TicketDetailView({ ticket, onBack, onChat, showToast }) {
+export default function TicketDetailView({ ticket, onBack, onChat, showToast, onCancelTicket }) {
   const [activeDetailTab, setActiveDetailTab] = useState('details');
   const tabs = ['Details', 'Timeline', 'Updates', 'Attachments'];
   const timelineRef = useRef(null);
@@ -115,7 +115,7 @@ export default function TicketDetailView({ ticket, onBack, onChat, showToast }) 
 
       <div className="ticket-detail-actions">
         <button className="btn-secondary flex-1" onClick={onChat}><Icon name="message-circle" size={16} /><span>Chat</span></button>
-        <button className="btn-primary btn-danger flex-1"><Icon name="x" size={16} /><span>Cancel Ticket</span></button>
+        <button className="btn-primary btn-danger flex-1" onClick={() => onCancelTicket?.(ticket.id)}><Icon name="x" size={16} /><span>Cancel Ticket</span></button>
       </div>
     </div>
   );
