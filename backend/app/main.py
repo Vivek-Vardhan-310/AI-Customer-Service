@@ -12,7 +12,7 @@ from .services.ai import groq_service
 from . import db
 
 # Import routers
-from .routers import status, tickets, chat, feedback, voice
+from .routers import status, tickets, chat, feedback, voice, twilio_voice
 
 app = FastAPI(title="AI Customer Service - Backend")
 
@@ -56,3 +56,5 @@ app.include_router(tickets.router)
 app.include_router(chat.router)
 app.include_router(feedback.router)
 app.include_router(voice.router)
+app.include_router(twilio_voice.router)
+
