@@ -197,6 +197,10 @@ CREATE POLICY "Users can update own tickets"
   ON tickets FOR UPDATE
   USING (auth.uid() = user_id);
 
+CREATE POLICY "Users can delete own tickets"
+  ON tickets FOR DELETE
+  USING (auth.uid() = user_id);
+
 -- Ticket Timeline: accessible via ticket ownership
 CREATE POLICY "Users can view own ticket timeline"
   ON ticket_timeline FOR SELECT

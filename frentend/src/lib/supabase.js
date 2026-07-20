@@ -93,6 +93,7 @@ export async function fetchTickets() {
       updates:ticket_updates(id, update_text, author, created_at)
     `)
     .eq('user_id', user.id)
+    .neq('status', 'Cancelled')
     .order('created_at', { ascending: false });
 
   if (error) { console.error('fetchTickets error:', error); return []; }
@@ -165,6 +166,25 @@ export async function createTicket({ productId, title, category, description, co
   await supabase.from('ticket_timeline').insert(timelineRows);
 
   return data;
+}
+
+export async function cancelTicket(ticketId) {
+  if (!supabase) return false;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { error } = await supabase
+    .from('tickets')
+    .update({ status: 'Cancelled' })
+    .eq('id', ticketId)
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('cancelTicket error:', error);
+    return false;
+  }
+
+  return true;
 }
 
 // ── FAQ ──────────────────────────────────────────────────────

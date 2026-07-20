@@ -3,10 +3,10 @@ import './App.css';
 import './animations.css';
 
 // Config
-import { supabase } from './config';
+import { supabase, apiUrl } from './config';
 
 // Supabase data layer
-import { fetchProfile, fetchProducts as fetchProductsDB, fetchTickets as fetchTicketsDB } from './lib/supabase';
+import { cancelTicket, fetchProfile, fetchProducts as fetchProductsDB, fetchTickets as fetchTicketsDB } from './lib/supabase';
 
 // Layout & Common Components
 import Toast from './components/Toast';
@@ -169,6 +169,74 @@ function App() {
     finally { setLoading(false); }
   };
 
+  const handleForgotPassword = async ({ email, otp, newPassword }) => {
+    if (!supabase) { showToast('Supabase not configured', 'warning'); return { success: false }; }
+    setLoading(true);
+    try {
+      if (!otp) {
+        const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+        if (error) { showToast(error.message || 'Unable to send reset code', 'error'); return { success: false }; }
+        showToast('A one-time code was sent to your email.', 'success');
+        return { success: true, nextStep: 'otp' };
+      }
+
+      const { data, error } = await supabase.auth.verifyOtp({ email, token: otp, type: 'email' });
+      if (error) { showToast(error.message || 'Invalid or expired code', 'error'); return { success: false }; }
+      if (!data?.session) { showToast('Verification did not return a session.', 'error'); return { success: false }; }
+
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) { showToast(updateError.message || 'Unable to update password', 'error'); return { success: false }; }
+
+      showToast('Password updated successfully. Please sign in with your new password.', 'success');
+      return { success: true };
+    } catch {
+      showToast('An error occurred', 'error');
+      return { success: false };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePassword = async ({ email, currentPassword, newPassword, otp, mode }) => {
+    if (!supabase) { showToast('Supabase not configured', 'warning'); return { success: false }; }
+    setLoading(true);
+    try {
+      if (mode === 'current') {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+        if (error) { showToast(error.message || 'Current password is incorrect', 'error'); return { success: false }; }
+        if (!data?.session) { showToast('Unable to verify your current password', 'error'); return { success: false }; }
+
+        const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+        if (updateError) { showToast(updateError.message || 'Unable to update password', 'error'); return { success: false }; }
+
+        showToast('Password changed successfully.', 'success');
+        return { success: true };
+      }
+
+      if (!otp) {
+        const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+        if (error) { showToast(error.message || 'Unable to send reset code', 'error'); return { success: false }; }
+        showToast('A one-time code was sent to your email.', 'success');
+        return { success: true, nextStep: 'otp' };
+      }
+
+      const { data, error } = await supabase.auth.verifyOtp({ email, token: otp, type: 'email' });
+      if (error) { showToast(error.message || 'Invalid or expired code', 'error'); return { success: false }; }
+      if (!data?.session) { showToast('Verification did not return a session.', 'error'); return { success: false }; }
+
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) { showToast(updateError.message || 'Unable to update password', 'error'); return { success: false }; }
+
+      showToast('Password changed successfully.', 'success');
+      return { success: true };
+    } catch {
+      showToast('An error occurred', 'error');
+      return { success: false };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     try { if (supabase) await supabase.auth.signOut(); } catch (e) { console.error(e); }
     localStorage.removeItem('supabase_token');
@@ -179,6 +247,48 @@ function App() {
     setUserProfile(null);
     setProducts([]);
     setTickets([]);
+  };
+
+  const handleVoiceCall = async () => {
+    if (!userProfile?.phone) {
+      showToast('No phone number available on your profile.', 'error');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('supabase_token');
+      const response = await fetch(`${apiUrl}/api/voice/call`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: 'Bearer ' + token } : {}),
+        },
+        body: JSON.stringify({
+          phone: userProfile.phone,
+          text: 'Hello from LaptopCare. Your AI support call is now active.',
+        }),
+      });
+
+      if (!response.ok) {
+        const responseText = await response.text().catch(() => null);
+        let message = 'Unable to place the call at this time.';
+        try {
+          const errorData = responseText ? JSON.parse(responseText) : null;
+          message = errorData?.detail || response.statusText || message;
+        } catch {
+          message = responseText || response.statusText || message;
+        }
+        console.error('Voice call failed', response.status, responseText);
+        showToast(message, 'error');
+        return;
+      }
+
+      const data = await response.json();
+      showToast(`Calling ${data.to}. Please answer your phone.`, 'success');
+    } catch (error) {
+      console.error('Voice call error:', error);
+      showToast('Failed to start the call.', 'error');
+    }
   };
 
   const openProfilePage = () => {
@@ -198,7 +308,7 @@ function App() {
     return (
       <>
         {currentPage === 'login'
-          ? <LoginPage onLogin={handleLogin} onSwitchToSignup={() => setCurrentPage('signup')} loading={loading} showToast={showToast} />
+          ? <LoginPage onLogin={handleLogin} onForgotPassword={handleForgotPassword} onSwitchToSignup={() => setCurrentPage('signup')} loading={loading} showToast={showToast} />
           : <SignupPage onSignup={handleSignup} onSwitchToLogin={() => setCurrentPage('login')} loading={loading} showToast={showToast} />
         }
         <Toast visible={toast.visible} message={toast.message} type={toast.type} />
@@ -208,9 +318,9 @@ function App() {
 
   // Render current view content
   const renderContent = () => {
-    if (showProfilePage) return <SettingsProfilePage onClose={() => setShowProfilePage(false)} profile={userProfile} refreshProfile={refreshProfile} showToast={showToast} />;
+    if (showProfilePage) return <SettingsProfilePage onClose={() => setShowProfilePage(false)} profile={userProfile} refreshProfile={refreshProfile} onChangePassword={handleChangePassword} showToast={showToast} />;
     if (activeTab === 'home' && !currentView) {
-      return <HomePage onNavigate={handleTabChange} profile={userProfile} />;
+      return <HomePage onNavigate={handleTabChange} onCall={handleVoiceCall} profile={userProfile} />;
     }
     if (activeTab === 'products') {
       if (currentView === 'detail' && selectedProduct) {
@@ -231,7 +341,28 @@ function App() {
     }
     if (activeTab === 'tickets') {
       if (currentView === 'detail' && selectedTicket) {
-        return <TicketDetailView ticket={selectedTicket} onBack={() => { setCurrentView(null); setSelectedTicket(null); }} onChat={() => setShowChat(true)} showToast={showToast} />;
+        return <TicketDetailView
+          ticket={selectedTicket}
+          onBack={() => { setCurrentView(null); setSelectedTicket(null); }}
+          onChat={() => setShowChat(true)}
+          showToast={showToast}
+          onCancelTicket={async (ticketId) => {
+            try {
+              const cancelled = await cancelTicket(ticketId);
+              if (!cancelled) {
+                throw new Error('Unable to cancel ticket');
+              }
+
+              await refreshTickets();
+              setSelectedTicket(null);
+              setCurrentView(null);
+              showToast('Ticket cancelled successfully.', 'success');
+            } catch (error) {
+              console.error('Cancel ticket failed', error);
+              showToast(error.message || 'Unable to cancel ticket', 'error');
+            }
+          }}
+        />;
       }
       return <TicketsPage tickets={tickets} loading={dataLoading} onSelectTicket={(t) => { setSelectedTicket(t); setCurrentView('detail'); }} />;
     }

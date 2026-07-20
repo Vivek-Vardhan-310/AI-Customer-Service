@@ -2,11 +2,18 @@ import { useState } from 'react';
 import Icon from '../components/ui/Icon';
 import { updateProfile } from '../lib/supabase';
 
-export default function SettingsProfilePage({ onClose, profile, refreshProfile, showToast }) {
+export default function SettingsProfilePage({ onClose, profile, refreshProfile, onChangePassword, showToast }) {
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [phone, setPhone] = useState(profile?.phone || '');
   const [saving, setSaving] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordMode, setPasswordMode] = useState('current');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
@@ -24,6 +31,46 @@ export default function SettingsProfilePage({ onClose, profile, refreshProfile, 
       showToast?.('Failed to update profile', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!newPassword || !confirmPassword) {
+      showToast?.('Please fill in the password fields', 'error');
+      return;
+    }
+    if (newPassword.length < 8) {
+      showToast?.('Password must be at least 8 characters', 'error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showToast?.('Passwords do not match', 'error');
+      return;
+    }
+    if (passwordMode === 'current' && !currentPassword) {
+      showToast?.('Please enter your current password', 'error');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const result = await onChangePassword({
+        email: profile?.email,
+        currentPassword,
+        newPassword,
+        otp,
+        mode: passwordMode,
+      });
+      if (result?.success) {
+        setShowPasswordModal(false);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setOtp('');
+      }
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -61,10 +108,47 @@ export default function SettingsProfilePage({ onClose, profile, refreshProfile, 
         ) : (
           <div style={{ marginTop: 16 }}>
             <button className="btn-primary" onClick={() => setEditing(true)}>Edit Profile</button>
-            <button className="btn-secondary" style={{ marginLeft: 12 }}>Change Password</button>
+            <button className="btn-secondary" style={{ marginLeft: 12 }} onClick={() => setShowPasswordModal(true)}>Change Password</button>
           </div>
         )}
       </div>
+
+      {showPasswordModal && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 1000 }}>
+          <div className="login-card" style={{ width: '100%', maxWidth: 460, padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>Update password</h3>
+              <button type="button" className="btn-secondary" onClick={() => { setShowPasswordModal(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setOtp(''); }}>Close</button>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <button type="button" className={passwordMode === 'current' ? 'btn-primary' : 'btn-secondary'} onClick={() => setPasswordMode('current')}>Current password</button>
+              <button type="button" className={passwordMode === 'otp' ? 'btn-primary' : 'btn-secondary'} onClick={() => setPasswordMode('otp')}>Email OTP</button>
+            </div>
+            <form onSubmit={handlePasswordSubmit} className="login-form">
+              {passwordMode === 'current' ? (
+                <div className="form-group">
+                  <label className="form-label">Current password</label>
+                  <input type="password" className="form-input" placeholder="Enter your current password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} disabled={passwordLoading} />
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label">OTP code</label>
+                  <input type="text" className="form-input" placeholder="Code from your email" value={otp} onChange={(e) => setOtp(e.target.value)} disabled={passwordLoading} />
+                </div>
+              )}
+              <div className="form-group">
+                <label className="form-label">New password</label>
+                <input type="password" className="form-input" placeholder="At least 8 characters" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} disabled={passwordLoading} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Confirm password</label>
+                <input type="password" className="form-input" placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={passwordLoading} />
+              </div>
+              <button type="submit" className="btn-primary full-width" disabled={passwordLoading}>{passwordLoading ? 'Updating...' : 'Update password'}</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

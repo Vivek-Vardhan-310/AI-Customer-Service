@@ -1,6 +1,6 @@
 import Icon from '../components/ui/Icon';
 
-export default function HomePage({ onNavigate, profile }) {
+export default function HomePage({ onNavigate, onCall, profile }) {
   const userName = profile?.full_name || 'there';
 
   return (
@@ -46,7 +46,7 @@ export default function HomePage({ onNavigate, profile }) {
               <div
                 key={i}
                 className={`home-action-card animate-in stagger-${i + 1}`}
-                onClick={() => action.tab && onNavigate(action.tab)}
+                onClick={() => action.tab === 'telephony' ? onCall?.() : onNavigate(action.tab)}
               >
                 <div className="home-action-icon">
                   <Icon name={action.icon} size={24} />

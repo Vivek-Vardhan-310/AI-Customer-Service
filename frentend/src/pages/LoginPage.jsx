@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import Icon from '../components/ui/Icon';
 
-export default function LoginPage({ onLogin, onSwitchToSignup, loading, showToast }) {
+export default function LoginPage({ onLogin, onForgotPassword, onSwitchToSignup, loading, showToast }) {
   const role = 'customer';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState('');
+  const [showForgot, setShowForgot] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,6 +29,41 @@ export default function LoginPage({ onLogin, onSwitchToSignup, loading, showToas
       return;
     }
     await onLogin({ email, role, password });
+  };
+
+  const handleForgotPasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!email) {
+      showToast?.('Please enter your email address', 'error');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showToast?.('Please enter a valid email', 'error');
+      return;
+    }
+    if (newPassword && newPassword.length < 8) {
+      showToast?.('Password must be at least 8 characters', 'error');
+      return;
+    }
+    if (newPassword && newPassword !== confirmPassword) {
+      showToast?.('Passwords do not match', 'error');
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      const result = await onForgotPassword({ email, otp, newPassword });
+      if (result?.success && result?.nextStep === 'otp') {
+        setOtp('');
+      } else if (result?.success) {
+        setShowForgot(false);
+        setOtp('');
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   return (
@@ -64,7 +104,7 @@ export default function LoginPage({ onLogin, onSwitchToSignup, loading, showToas
             </div>
             <div className="form-row">
               <label className="checkbox-label"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /><span className="checkbox-custom"></span><span>Remember me</span></label>
-              <a href="#" className="forgot-link" onClick={(e) => e.preventDefault()}>Forgot password?</a>
+              <a href="#" className="forgot-link" onClick={(e) => { e.preventDefault(); setShowForgot(true); setError(''); }}>Forgot password?</a>
             </div>
             {error && <div className="form-error">{error}</div>}
             <button type="submit" className="btn-primary login-btn full-width" disabled={loading}>{loading ? 'Signing in...' : 'Sign In'}</button>
@@ -72,6 +112,37 @@ export default function LoginPage({ onLogin, onSwitchToSignup, loading, showToas
           <p className="login-footer-text">New here? <a href="#" className="create-account-link" onClick={(e) => { e.preventDefault(); onSwitchToSignup(); }}>Create account</a></p>
         </div>
       </div>
+
+      {showForgot && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 1000 }}>
+          <div className="login-card" style={{ width: '100%', maxWidth: 420, padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>Reset password</h3>
+              <button type="button" className="btn-secondary" onClick={() => { setShowForgot(false); setOtp(''); setNewPassword(''); setConfirmPassword(''); }}>Close</button>
+            </div>
+            <p className="login-card-subtitle" style={{ marginBottom: 16 }}>Enter your email, then either use the code sent to your inbox or enter a new password after verification.</p>
+            <form onSubmit={handleForgotPasswordSubmit} className="login-form">
+              <div className="form-group">
+                <label className="form-label">Email address</label>
+                <input type="email" className="form-input" placeholder="name@company.com" value={email} onChange={(e) => { setEmail(e.target.value); setError(''); }} disabled={loading || forgotLoading} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">OTP code</label>
+                <input type="text" className="form-input" placeholder="Enter code from email" value={otp} onChange={(e) => setOtp(e.target.value)} disabled={loading || forgotLoading} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">New password</label>
+                <input type="password" className="form-input" placeholder="At least 8 characters" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} disabled={loading || forgotLoading} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Confirm password</label>
+                <input type="password" className="form-input" placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={loading || forgotLoading} />
+              </div>
+              <button type="submit" className="btn-primary full-width" disabled={loading || forgotLoading}>{forgotLoading ? 'Processing...' : otp ? 'Set new password' : 'Send code'}</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
