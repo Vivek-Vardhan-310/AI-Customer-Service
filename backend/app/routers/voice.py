@@ -6,6 +6,7 @@ import asyncio
 import logging
 import json
 import re
+from xml.sax.saxutils import escape
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl
 from pydantic import BaseModel
 
@@ -360,13 +361,17 @@ def normalize_phone_number(phone: str) -> str:
 
 
 def get_twiml_url(request: Request) -> str | None:
-    if TWILIO_CALLBACK_URL:
-        callback_url = TWILIO_CALLBACK_URL.strip()
+    raw_url = TWILIO_CALLBACK_URL
+    if not raw_url and os.environ.get("PUBLIC_BASE_URL"):
+        raw_url = os.environ.get("PUBLIC_BASE_URL").rstrip("/") + "/api/twilio/voice/incoming"
+
+    if raw_url:
+        callback_url = raw_url.strip()
         if _is_public_callback_url(callback_url):
             logger.info(f"Using configured Twilio callback URL: {callback_url}")
             return callback_url
         logger.warning(
-            "Configured TWILIO_CALLBACK_URL is not a publicly reachable URL. "
+            "Configured TWILIO_CALLBACK_URL / PUBLIC_BASE_URL is not a publicly reachable URL. "
             "Falling back to inline TwiML."
         )
 
@@ -377,13 +382,18 @@ def get_twiml_url(request: Request) -> str | None:
 
     logger.warning(
         "No public Twilio callback URL available. Twilio will use inline TwiML instead. "
-        "Set TWILIO_CALLBACK_URL to a public HTTPS endpoint if you want callback mode."
+        "Set PUBLIC_BASE_URL or TWILIO_CALLBACK_URL to a public HTTPS endpoint if you want callback mode."
     )
     return None
 
 
 def make_call(to_number: str, twiml_url: str) -> str:
     """Place an outbound Twilio call using a callback URL and return the Call SID."""
+    if _twilio_client is None:
+        raise HTTPException(
+            status_code=502,
+            detail="Twilio integration is not configured. Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in backend/.env."
+        )
     try:
         call = _twilio_client.calls.create(
             to=to_number,
@@ -398,14 +408,39 @@ def make_call(to_number: str, twiml_url: str) -> str:
 
 
 def make_call_with_twiml(to_number: str, twiml_text: str) -> str:
-    """Place an outbound Twilio call using inline TwiML and return the Call SID."""
-    twiml = TwilioVoiceResponse()
-    twiml.say(twiml_text, voice="alice", language="en-US")
+    """Place an outbound Twilio call using inline TwiML with Gather speech recognition."""
+    if _twilio_client is None:
+        raise HTTPException(
+            status_code=502,
+            detail="Twilio integration is not configured. Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in backend/.env."
+        )
+    if TwilioVoiceResponse is not None:
+        twiml_obj = TwilioVoiceResponse()
+        gather = twiml_obj.gather(
+            input="speech",
+            action="/api/twilio/voice/respond",
+            method="POST",
+            speech_timeout="auto",
+            language="en-US"
+        )
+        gather.say(twiml_text, voice="alice", language="en-US")
+        twiml_obj.redirect("/api/twilio/voice/incoming")
+        twiml_str = str(twiml_obj)
+    else:
+        escaped_text = escape(twiml_text)
+        twiml_str = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Gather input="speech" action="/api/twilio/voice/respond" method="POST" speechTimeout="auto" language="en-US">
+        <Say voice="alice" language="en-US">{escaped_text}</Say>
+    </Gather>
+    <Redirect>/api/twilio/voice/incoming</Redirect>
+</Response>"""
+
     try:
         call = _twilio_client.calls.create(
             to=to_number,
             from_=TWILIO_PHONE_NUMBER,
-            twiml=str(twiml),
+            twiml=twiml_str,
         )
         logger.info(f"Twilio call created (inline TwiML mode): SID={call.sid} to={to_number}")
         return call.sid
@@ -455,10 +490,29 @@ async def generate_call_intro_text(default_text: str = "Welcome to LaptopCare cu
 
 
 def generate_voice_response(text: str) -> Response:
-    """Generate TwiML that speaks the provided text."""
-    twiml = TwilioVoiceResponse()
-    twiml.say(text, voice="alice", language="en-US")
-    return Response(content=str(twiml), media_type="application/xml")
+    """Generate TwiML that speaks the provided text and gathers speech response."""
+    if TwilioVoiceResponse is not None:
+        twiml_obj = TwilioVoiceResponse()
+        gather = twiml_obj.gather(
+            input="speech",
+            action="/api/twilio/voice/respond",
+            method="POST",
+            speech_timeout="auto",
+            language="en-US"
+        )
+        gather.say(text, voice="alice", language="en-US")
+        twiml_obj.redirect("/api/twilio/voice/incoming")
+        twiml_str = str(twiml_obj)
+    else:
+        escaped_text = escape(text)
+        twiml_str = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Gather input="speech" action="/api/twilio/voice/respond" method="POST" speechTimeout="auto" language="en-US">
+        <Say voice="alice" language="en-US">{escaped_text}</Say>
+    </Gather>
+    <Redirect>/api/twilio/voice/incoming</Redirect>
+</Response>"""
+    return Response(content=twiml_str, media_type="application/xml")
 
 
 @router.post("/api/voice/call")
@@ -468,6 +522,13 @@ async def initiate_voice_call(
     user=Depends(require_user)
 ):
     """Start an outbound Twilio call to the user's phone number."""
+    if _twilio_client is None:
+        if Client is None:
+            detail = "Twilio python package is missing. Please install it using 'pip install twilio'."
+        else:
+            detail = "Twilio is not configured. Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in backend/.env."
+        raise HTTPException(status_code=502, detail=detail)
+
     to_number = normalize_phone_number(payload.phone)
 
     try:
@@ -481,6 +542,8 @@ async def initiate_voice_call(
         intro_text = await generate_call_intro_text(payload.text)
         call_sid = make_call_with_twiml(to_number, intro_text)
         return {"call_sid": call_sid, "to": to_number, "twiml": intro_text}
+    except HTTPException:
+        raise
     except TwilioRestException as exc:
         detail = getattr(exc, 'msg', None) or str(exc)
         code = getattr(exc, 'code', None)
