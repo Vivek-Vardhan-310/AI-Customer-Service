@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Form, Response, Request
 from typing import Optional
 from xml.sax.saxutils import escape
@@ -7,9 +8,35 @@ from ..services.twilio_groq_service import twilio_groq_service
 router = APIRouter(prefix="/api/twilio/voice", tags=["twilio-voice"])
 logger = logging.getLogger("twilio_voice")
 
-def build_twiml_response(prompt_text: str, voice: str, language: str, action_url: str = "/api/twilio/voice/respond", include_gather: bool = True) -> str:
-    """Generate compliant TwiML XML with <Say> nested INSIDE <Gather> and <Redirect> fallback to maintain the conversation loop."""
+def get_public_base_url(request: Optional[Request] = None) -> Optional[str]:
+    """Resolve public HTTPS base URL from environment variables (PUBLIC_BASE_URL, RENDER_EXTERNAL_URL) or request headers."""
+    base = os.environ.get("PUBLIC_BASE_URL") or os.environ.get("TWILIO_CALLBACK_URL") or os.environ.get("RENDER_EXTERNAL_URL")
+    if base and base.strip():
+        return base.strip().rstrip("/")
+    if request:
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+        proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+        if host and not ("localhost" in host or "127.0.0.1" in host):
+            return f"{proto}://{host}".rstrip("/")
+    return None
+
+def build_twiml_response(
+    prompt_text: str,
+    voice: str,
+    language: str,
+    request: Optional[Request] = None,
+    include_gather: bool = True
+) -> str:
+    """Generate compliant TwiML XML with absolute HTTPS action and redirect URLs."""
     escaped_text = escape(prompt_text)
+    base_url = get_public_base_url(request)
+
+    if base_url:
+        action_url = f"{base_url}/api/twilio/voice/respond"
+        redirect_url = f"{base_url}/api/twilio/voice/incoming"
+    else:
+        action_url = "/api/twilio/voice/respond"
+        redirect_url = "/api/twilio/voice/incoming"
     
     if include_gather:
         twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -18,7 +45,7 @@ def build_twiml_response(prompt_text: str, voice: str, language: str, action_url
         <Say voice="{voice}" language="{language}">{escaped_text}</Say>
     </Gather>
     <Say voice="{voice}" language="{language}">I didn't catch that. Please speak your question clearly.</Say>
-    <Redirect>/api/twilio/voice/incoming</Redirect>
+    <Redirect>{redirect_url}</Redirect>
 </Response>"""
     else:
         twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -52,7 +79,7 @@ async def handle_incoming_call(
     if CallSid:
         twilio_groq_service.get_session(CallSid)
 
-    twiml = build_twiml_response(greeting, voice=voice, language=language, include_gather=True)
+    twiml = build_twiml_response(greeting, voice=voice, language=language, request=request, include_gather=True)
     logger.info(f"[CallSid: {CallSid}] Sending incoming call TwiML response:\n{twiml}")
     
     return Response(content=twiml, media_type="application/xml")
@@ -79,12 +106,12 @@ async def handle_speech_response(
     if SpeechResult and SpeechResult.strip():
         # Process user speech through Groq AI agent
         ai_reply = twilio_groq_service.generate_response(CallSid, SpeechResult.strip())
-        twiml = build_twiml_response(ai_reply, voice=voice, language=language, include_gather=True)
+        twiml = build_twiml_response(ai_reply, voice=voice, language=language, request=request, include_gather=True)
     else:
         # User silent or speech recognition failed to capture input
         logger.warning(f"[CallSid: {CallSid}] No speech detected in Gather input")
         retry_prompt = "I didn't quite hear you. How can I help you today?"
-        twiml = build_twiml_response(retry_prompt, voice=voice, language=language, include_gather=True)
+        twiml = build_twiml_response(retry_prompt, voice=voice, language=language, request=request, include_gather=True)
 
     logger.info(f"[CallSid: {CallSid}] Returning Gather TwiML response:\n{twiml}")
     return Response(content=twiml, media_type="application/xml")

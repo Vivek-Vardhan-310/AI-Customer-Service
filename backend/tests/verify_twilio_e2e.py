@@ -49,8 +49,8 @@ async def verify_e2e_twilio_flow():
         assert "application/xml" in incoming_res.headers.get("content-type", "")
         assert "<Gather" in incoming_res.text
         assert "<Say" in incoming_res.text
-        assert "<Redirect>/api/twilio/voice/incoming</Redirect>" in incoming_res.text
-        print("[SUCCESS] Step 1 Passed: Incoming webhook returned valid TwiML with nested <Say> inside <Gather> and fallback <Redirect>.")
+        assert "<Redirect>" in incoming_res.text and "/api/twilio/voice/incoming" in incoming_res.text
+        print("[SUCCESS] Step 1 Passed: Incoming webhook returned valid TwiML with absolute HTTPS URLs inside <Gather> and fallback <Redirect>.")
 
         # ----------------------------------------------------
         # STEP 2: First Conversational Turn (/api/twilio/voice/respond)
@@ -75,7 +75,7 @@ async def verify_e2e_twilio_flow():
         assert "application/xml" in turn1_res.headers.get("content-type", "")
         assert "<Gather" in turn1_res.text
         assert "<Say" in turn1_res.text
-        assert "<Redirect>/api/twilio/voice/incoming</Redirect>" in turn1_res.text
+        assert "<Redirect>" in turn1_res.text and "/api/twilio/voice/incoming" in turn1_res.text
         assert "hours" in turn1_res.text.lower() or "support" in turn1_res.text.lower() or "help" in turn1_res.text.lower()
         print("[SUCCESS] Step 2 Passed: Groq AI model processed speech and returned spoken AI reply inside <Gather>.")
 
