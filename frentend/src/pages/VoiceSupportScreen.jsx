@@ -6,6 +6,7 @@ import { fetchProfile, fetchProducts } from '../lib/supabase';
 export default function VoiceSupportScreen({ onClose, onEndSession }) {
   const token = localStorage.getItem('supabase_token');
   const [userContext, setUserContext] = useState(null);
+  const [isContextReady, setIsContextReady] = useState(false);
 
   // Fetch user context on mount
   useEffect(() => {
@@ -28,6 +29,8 @@ export default function VoiceSupportScreen({ onClose, onEndSession }) {
         });
       } catch (e) {
         console.error('Failed to load user context for voice:', e);
+      } finally {
+        setIsContextReady(true);
       }
     };
     loadContext();
@@ -41,7 +44,11 @@ export default function VoiceSupportScreen({ onClose, onEndSession }) {
       </div>
       <h2 className="voice-title">Voice Assistant</h2>
       <div className="voice-mic-area">
-        <VoiceChat token={token} onSessionComplete={onEndSession} userContext={userContext} />
+        {isContextReady ? (
+          <VoiceChat token={token} onSessionComplete={onEndSession} userContext={userContext} isReady={isContextReady} />
+        ) : (
+          <div className="voice-loading">Loading your profile…</div>
+        )}
       </div>
       <div className="voice-features">
         <div className="voice-feature">

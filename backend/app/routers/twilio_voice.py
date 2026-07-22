@@ -77,7 +77,11 @@ async def handle_incoming_call(
     language = twilio_groq_service.get_language()
 
     if CallSid:
-        twilio_groq_service.get_session(CallSid)
+        from ..services.supabase_repository import normalize_phone_number_e164
+        from ..services.customer_context import build_customer_context
+        normalized_from = normalize_phone_number_e164(From)
+        user_context = build_customer_context(phone=normalized_from)
+        twilio_groq_service.get_session(CallSid, user_context=user_context)
 
     twiml = build_twiml_response(greeting, voice=voice, language=language, request=request, include_gather=True)
     logger.info(f"[CallSid: {CallSid}] Sending incoming call TwiML response:\n{twiml}")
@@ -105,6 +109,15 @@ async def handle_speech_response(
 
     if SpeechResult and SpeechResult.strip():
         # Process user speech through Groq AI agent
+        if CallSid not in twilio_groq_service.sessions:
+            logger.warning(f"[SESSION RECOVERY] Session missing for CallSid: {CallSid} during /respond. Rebuilding customer context from caller phone.")
+            from_phone = request.query_params.get("From") or Form(None) or "N/A"
+            from ..services.supabase_repository import normalize_phone_number_e164
+            from ..services.customer_context import build_customer_context
+            normalized_from = normalize_phone_number_e164(from_phone)
+            recovered_context = build_customer_context(phone=normalized_from)
+            twilio_groq_service.get_session(CallSid, user_context=recovered_context, is_recovery=True)
+
         ai_reply = twilio_groq_service.generate_response(CallSid, SpeechResult.strip())
         twiml = build_twiml_response(ai_reply, voice=voice, language=language, request=request, include_gather=True)
     else:

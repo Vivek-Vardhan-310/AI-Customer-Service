@@ -1,63 +1,42 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header, Depends
+from typing import Optional
 import os
 from ..schemas import ChatRequest
 from ..services.ai import groq_service
+from ..services.customer_context import build_customer_context
+from ..services.ai_prompt import build_system_prompt
+from ..dependencies import require_user
 from .. import storage
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
-CHAT_SYSTEM_PROMPT = (
-    "You are a friendly, helpful AI assistant for LaptopCare — a laptop care and support service website. "
-    "You help customers with laptop troubleshooting, warranty inquiries, AMC (Annual Maintenance Contract) questions, "
-    "ticket tracking, product information, and general laptop care advice. "
-    "Be conversational, empathetic, and concise. Use markdown formatting for clarity when listing steps. "
-    "If you cannot resolve an issue, suggest the customer raise a support ticket. "
-    "Never make up warranty dates or product details — use only the information provided in the user context."
-)
-
-
-def _build_system_prompt(user_context=None):
-    """Build a personalized system prompt with user context."""
-    prompt = CHAT_SYSTEM_PROMPT
-
-    if user_context:
-        context_parts = ["\n\n--- Customer Context ---"]
-        if user_context.name:
-            context_parts.append(f"Customer Name: {user_context.name}")
-        if user_context.email:
-            context_parts.append(f"Email: {user_context.email}")
-        if user_context.phone:
-            context_parts.append(f"Phone: {user_context.phone}")
-
-        if user_context.products:
-            context_parts.append("\nRegistered Products:")
-            for i, prod in enumerate(user_context.products, 1):
-                name = prod.get('name', 'Unknown')
-                serial = prod.get('serial', 'N/A')
-                warranty = prod.get('warranty', 'N/A')
-                warranty_days = prod.get('warrantyDays', 'N/A')
-                amc = prod.get('amc', 'N/A')
-                amc_days = prod.get('amcDays', 'N/A')
-                model = prod.get('model', '')
-                context_parts.append(
-                    f"  {i}. {name} (Model: {model}, Serial: {serial}) — "
-                    f"Warranty: {warranty} ({warranty_days} days left), "
-                    f"AMC: {amc} ({amc_days} days left)"
-                )
-
-        context_parts.append("--- End Customer Context ---")
-        prompt += "\n".join(context_parts)
-
-    return prompt
-
 
 @router.post("")
-def chat(req: ChatRequest):
+def chat(
+    req: ChatRequest,
+    authorization: Optional[str] = Header(None),
+    user = Depends(require_user)
+):
     client = groq_service.get_client()
     if client is not None:
         try:
             # Build the messages list with system prompt and conversation history
-            system_prompt = _build_system_prompt(req.user_context)
+            user_ctx_dict = req.user_context.dict() if hasattr(req.user_context, 'dict') else req.user_context
+            
+            token = None
+            if authorization and authorization.lower().startswith("bearer "):
+                token = authorization.split(" ", 1)[1].strip()
+
+            user_id = user.get("id") or user.get("sub")
+            email = user.get("email")
+
+            normalized_context = build_customer_context(
+                user_id=user_id,
+                email=email,
+                jwt=token,
+                client_provided_context=user_ctx_dict
+            )
+            system_prompt = build_system_prompt(normalized_context, mode="chat")
             messages = [{"role": "system", "content": system_prompt}]
 
             # Add conversation history if provided

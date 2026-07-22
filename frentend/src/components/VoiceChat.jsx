@@ -23,10 +23,13 @@ ort.env.wasm.numThreads = 1;
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Derive WebSocket URL from the API URL (http→ws, https→wss)
-const getWsUrl = () => {
+const getWsUrl = (token) => {
   const url = new URL(API_URL);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   url.pathname = '/ws/voice';
+  if (token) {
+    url.searchParams.set('token', token);
+  }
   return url.toString();
 };
 
@@ -49,7 +52,7 @@ const STATE_LABELS = {
   [STATE.ERROR]: 'Connection error',
 };
 
-const VoiceChat = ({ token, onSessionComplete, userContext }) => {
+const VoiceChat = ({ token, onSessionComplete, userContext, isReady = true }) => {
   // ── State ────────────────────────────────────────────────────────────
   const [conversationState, setConversationState] = useState(STATE.CONNECTING);
   const [messages, setMessages] = useState([]); // {role: 'user'|'assistant', text: string}
@@ -222,8 +225,25 @@ const VoiceChat = ({ token, onSessionComplete, userContext }) => {
     }
   }, [queueTTSSentence]);
 
+  const sendUserContext = useCallback((ctx) => {
+    if (!ctx) return;
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'user_context', context: ctx }));
+      console.log('[VoiceChat] Sent user context to backend');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isReady) return;
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      sendUserContext(userContext);
+    }
+  }, [isReady, userContext, sendUserContext]);
+
   // ── Initialize WebSocket + VAD ───────────────────────────────────────
   useEffect(() => {
+    if (!isReady) return;
+
     mountedRef.current = true;
     let isCurrent = true;
     let ws = null;
@@ -283,7 +303,7 @@ const VoiceChat = ({ token, onSessionComplete, userContext }) => {
       }
 
       // ── 2. Connect WebSocket ─────────────────────────────────────
-      const wsUrl = getWsUrl();
+      const wsUrl = getWsUrl(token);
       console.log('[VoiceChat] Connecting to', wsUrl);
 
       ws = new WebSocket(wsUrl);
@@ -296,10 +316,7 @@ const VoiceChat = ({ token, onSessionComplete, userContext }) => {
           setError(null);
 
           // Send user context to backend for personalized system prompt
-          if (userContext) {
-            ws.send(JSON.stringify({ type: 'user_context', context: userContext }));
-            console.log('[VoiceChat] Sent user context to backend');
-          }
+          sendUserContext(userContext);
         }
       };
 

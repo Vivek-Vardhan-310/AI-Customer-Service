@@ -25,51 +25,12 @@ else:
 from ..dependencies import require_user
 from ..schemas import VoiceChatRequest, VoiceChatResponse
 from ..services.ai import groq_service, split_sentences
+from ..services.customer_context import build_customer_context
+from ..services.ai_prompt import build_system_prompt
+from ..services.conversation_manager import conversation_manager
 
 router = APIRouter(tags=["voice"])
 logger = logging.getLogger("voice_ws")
-
-VOICE_SYSTEM_PROMPT_BASE = (
-    "You are a friendly, concise voice assistant for LaptopCare customer support. "
-    "Keep responses short (1-3 sentences) since you are speaking out loud. "
-    "Be helpful with laptop issues, warranty questions, and troubleshooting. "
-    "Don't use markdown formatting, bullet points, or special characters — speak naturally."
-)
-
-
-def _build_voice_system_prompt(user_context=None):
-    """Build a personalized voice system prompt with user context."""
-    prompt = VOICE_SYSTEM_PROMPT_BASE
-
-    if user_context:
-        context_parts = ["\n\nCustomer Context:"]
-        if user_context.get("name"):
-            context_parts.append(f"Name: {user_context['name']}.")
-        if user_context.get("email"):
-            context_parts.append(f"Email: {user_context['email']}.")
-        if user_context.get("phone"):
-            context_parts.append(f"Phone: {user_context['phone']}.")
-
-        products = user_context.get("products", [])
-        if products:
-            context_parts.append("Registered Products:")
-            for i, prod in enumerate(products, 1):
-                name = prod.get('name', 'Unknown')
-                serial = prod.get('serial', 'N/A')
-                warranty = prod.get('warranty', 'N/A')
-                warranty_days = prod.get('warrantyDays', 'N/A')
-                amc = prod.get('amc', 'N/A')
-                amc_days = prod.get('amcDays', 'N/A')
-                model = prod.get('model', '')
-                context_parts.append(
-                    f"  {i}. {name} (Model: {model}, Serial: {serial}), "
-                    f"Warranty: {warranty} ({warranty_days} days left), "
-                    f"AMC: {amc} ({amc_days} days left)"
-                )
-
-        prompt += " ".join(context_parts)
-
-    return prompt
 
 
 @router.post("/api/voice", response_model=VoiceChatResponse)
@@ -107,7 +68,6 @@ async def voice_chat(req: VoiceChatRequest):
         print(f"Bot (Llama): {reply_text}")
 
         return VoiceChatResponse(transcript=user_text, reply_text=reply_text)
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Voice chat processing failed: {e}")
 
@@ -116,12 +76,39 @@ async def voice_websocket(websocket: WebSocket):
     await websocket.accept()
     logger.info("Voice WebSocket connected")
 
-    # Start with base system prompt; will be updated when user_context arrives
-    conversation_history: list[dict] = [
-        {"role": "system", "content": VOICE_SYSTEM_PROMPT_BASE}
-    ]
+    import uuid
+    session_id = f"browser_{uuid.uuid4()}"
 
-    user_context_received = False
+    # Extract auth token from query params and attempt backend profile lookup immediately
+    token = websocket.query_params.get("token")
+    user_context = None
+
+    if token:
+        logger.info("[ws/voice] Authenticating token from query param.")
+        from ..dependencies import _get_supabase_url, _get_supabase_key
+        import requests
+        supa = _get_supabase_url()
+        key = _get_supabase_key()
+        if supa and key:
+            try:
+                resp = requests.get(
+                    f"{supa}/auth/v1/user",
+                    headers={"Authorization": f"Bearer {token}", "apikey": key},
+                    timeout=5
+                )
+                if resp.status_code == 200:
+                    user_data = resp.json()
+                    user_id = user_data.get("id")
+                    email = user_data.get("email")
+                    logger.info(f"[ws/voice] Token authenticated successfully for {email}")
+                    user_context = build_customer_context(user_id=user_id, email=email, jwt=token)
+            except Exception as e:
+                logger.error(f"[ws/voice] Auth verification failed: {e}")
+
+    if not user_context:
+        user_context = build_customer_context()
+
+    conversation_manager.create_session(session_id, user_context=user_context, mode="voice")
     abort_flag = False
 
     async def process_audio(audio_bytes: bytes):
@@ -133,7 +120,6 @@ async def voice_websocket(websocket: WebSocket):
             await websocket.send_json({"type": "error", "message": "Groq client not initialized"})
             return
 
-        # ── Step 1: Speech-to-Text via Groq Whisper ──────────────────────
         try:
             audio_file = BytesIO(audio_bytes)
             audio_file.name = "audio.webm"
@@ -150,20 +136,19 @@ async def voice_websocket(websocket: WebSocket):
             await websocket.send_json({"type": "error", "message": f"STT failed: {e}"})
             return
 
-        # ── Step 2: Validate transcript — skip if empty or too short ─────
         if not user_text or len(user_text) < 2:
             await websocket.send_json({"type": "no_speech"})
             return
 
         await websocket.send_json({"type": "transcript", "text": user_text})
-        conversation_history.append({"role": "user", "content": user_text})
+        conversation_manager.append_message(session_id, "user", user_text)
+        session = conversation_manager.get_session(session_id)
 
-        # ── Step 3: Streaming LLM response ───────────────────────────────
         try:
             stream = await asyncio.to_thread(
                 client.chat.completions.create,
                 model=os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
-                messages=conversation_history,
+                messages=session["history"],
                 temperature=float(os.environ.get("GROQ_TEMPERATURE", "0.7")),
                 max_completion_tokens=int(os.environ.get("GROQ_MAX_COMPLETION_TOKENS", "512")),
                 top_p=float(os.environ.get("GROQ_TOP_P", "1")),
@@ -174,7 +159,6 @@ async def voice_websocket(websocket: WebSocket):
             await websocket.send_json({"type": "error", "message": f"LLM failed: {e}"})
             return
 
-        # ── Step 4: Stream tokens, buffer into sentences, send for TTS ───
         full_response = ""
         buffer = ""
         sentence_idx = 0
@@ -218,7 +202,6 @@ async def voice_websocket(websocket: WebSocket):
         except Exception as e:
             logger.error(f"LLM streaming error: {e}")
 
-        # ── Step 5: Flush any remaining buffer as the final sentence ─────
         if buffer.strip() and not abort_flag:
             try:
                 await websocket.send_json({
@@ -231,9 +214,8 @@ async def voice_websocket(websocket: WebSocket):
                 pass
 
         if full_response:
-            conversation_history.append({"role": "assistant", "content": full_response})
-            if len(conversation_history) > 21:
-                conversation_history[1:] = conversation_history[-20:]
+            conversation_manager.append_message(session_id, "assistant", full_response)
+            conversation_manager.trim_history(session_id, limit=20)
 
         if not abort_flag:
             try:
@@ -280,22 +262,20 @@ async def voice_websocket(websocket: WebSocket):
                         except (asyncio.CancelledError, Exception):
                             pass
 
-                elif data.get("type") == "user_context" and not user_context_received:
-                    # Update the system prompt with user context
-                    user_context_received = True
+                elif data.get("type") == "user_context":
                     user_ctx = data.get("context", {})
                     logger.info(f"Received user context for: {user_ctx.get('name', 'unknown')}")
-                    new_system_prompt = _build_voice_system_prompt(user_ctx)
-                    conversation_history[0] = {"role": "system", "content": new_system_prompt}
+                    conversation_manager.create_session(session_id, user_context=user_ctx, mode="voice")
 
-    except WebSocketDisconnect:
-        logger.info("Voice WebSocket disconnected")
     except Exception as e:
         logger.error(f"Voice WebSocket error: {e}")
     finally:
         if current_task and not current_task.done():
             current_task.cancel()
+        conversation_manager.clear_session(session_id)
         logger.info("Voice WebSocket session ended")
+
+
 
 
 TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID")
