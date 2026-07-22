@@ -91,5 +91,5 @@ def get_user_products(user_id: str, jwt: Optional[str] = None) -> List[Dict[str,
 def get_user_tickets(user_id: str, jwt: Optional[str] = None) -> List[Dict[str, Any]]:
     """Fetch user's open or closed support tickets by user_id."""
     escaped_id = urllib.parse.quote(user_id)
-    endpoint = f"tickets?select=*&owner=eq.{escaped_id}"
+    endpoint = f"tickets?select=*,user_product:user_products(product:product_catalog(name))&user_id=eq.{escaped_id}"
     return _execute_supabase_request(endpoint, jwt=jwt)

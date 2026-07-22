@@ -23,10 +23,39 @@ HALLUCINATION_GUARDRAILS = (
     "4. If the customer asks about their device details, warranty, or ticket and it is not listed in the context, explicitly say that you do not have that information on file instead of guessing or inventing details."
 )
 
+TICKET_CREATION_RULES = (
+    "\n\n--- RULES FOR CREATING SUPPORT TICKETS ---\n"
+    "When a customer wants to raise a support ticket, follow these rules STRICTLY:\n\n"
+    "1. AUTO-FILL FROM CONTEXT: You already have the customer's name, email, phone, and registered products "
+    "in the Customer Context above. Use that information DIRECTLY when calling create_ticket. "
+    "NEVER ask the customer to repeat their name, email, or phone number if it is already in the context.\n\n"
+    "2. ONLY ASK FOR WHAT YOU DON'T KNOW: The only information you need to ask the customer for is:\n"
+    "   - Which laptop has the issue (MANDATORY if they have more than one registered product — see Rule 3)\n"
+    "   - A description of the issue (if they haven't described it yet)\n"
+    "   - The priority (Low / Medium / High) — ask if not obvious from context\n\n"
+    "3. MULTIPLE PRODUCTS — ALWAYS ASK FIRST: If the customer has more than one registered product, "
+    "you MUST ask 'Which laptop is experiencing this issue?' BEFORE calling create_ticket. "
+    "NEVER assume. NEVER create a ticket for all products. "
+    "Wait for the customer to explicitly tell you which single laptop is affected.\n\n"
+    "4. ONE TICKET PER REQUEST — ABSOLUTE RULE: You MUST call create_ticket EXACTLY ONCE per user request. "
+    "NEVER call create_ticket more than once in a single response, even if the user has multiple laptops. "
+    "One issue = One ticket. If the customer wants tickets for multiple laptops, handle them one at a time "
+    "in separate conversation turns.\n\n"
+    "5. USE REGISTERED PRODUCT DATA: If the customer's laptop is in the Registered Products list, "
+    "use its brand, model, and serial number directly from the context — do not ask the customer to provide them again.\n\n"
+    "6. CALL THE TOOL PROACTIVELY: Once you know which laptop and what the issue is, "
+    "call create_ticket immediately using the context data.\n\n"
+    "7. CONVERSATION SUMMARY: When calling create_ticket, set conversation_summary to a brief description "
+    "of what the customer told you in this conversation."
+)
+
 def build_system_prompt(user_context: Optional[Dict[str, Any]] = None, mode: str = "voice") -> str:
     """Build a unified system prompt with dynamic customer context and anti-hallucination guardrails."""
     prompt = VOICE_SYSTEM_PROMPT_BASE if mode == "voice" else CHAT_SYSTEM_PROMPT_BASE
     prompt += HALLUCINATION_GUARDRAILS
+
+    # Ticket creation rules apply to both chat and voice interfaces
+    prompt += TICKET_CREATION_RULES
 
     if user_context:
         context_parts = ["\n\nCustomer Context:"]

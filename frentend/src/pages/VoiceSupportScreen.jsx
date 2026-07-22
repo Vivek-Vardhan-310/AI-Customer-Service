@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Icon from '../components/ui/Icon';
 import VoiceChat from '../components/VoiceChat';
-import { fetchProfile, fetchProducts } from '../lib/supabase';
+import { fetchProfile, fetchProducts, fetchTickets } from '../lib/supabase';
 
 export default function VoiceSupportScreen({ onClose, onEndSession }) {
   const token = localStorage.getItem('supabase_token');
@@ -12,7 +12,7 @@ export default function VoiceSupportScreen({ onClose, onEndSession }) {
   useEffect(() => {
     const loadContext = async () => {
       try {
-        const [profile, products] = await Promise.all([fetchProfile(), fetchProducts()]);
+        const [profile, products, tickets] = await Promise.all([fetchProfile(), fetchProducts(), fetchTickets()]);
         setUserContext({
           name: profile?.full_name || null,
           email: profile?.email || null,
@@ -25,6 +25,15 @@ export default function VoiceSupportScreen({ onClose, onEndSession }) {
             warrantyDays: p.warrantyDays,
             amc: p.amc,
             amcDays: p.amcDays,
+          })),
+          tickets: (tickets || []).map(t => ({
+            id: t.id,
+            product: t.product,
+            category: t.category,
+            status: t.status,
+            priority: t.priority || 'Medium',
+            description: t.description || t.title,
+            date: t.created || t.created_at
           })),
         });
       } catch (e) {

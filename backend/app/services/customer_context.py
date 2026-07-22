@@ -48,9 +48,14 @@ def normalize_product(prod: Dict[str, Any]) -> Dict[str, Any]:
 
 def normalize_ticket(ticket: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize ticket attributes."""
+    user_prod = ticket.get("user_product") or {}
+    catalog = user_prod.get("product") or {} if isinstance(user_prod, dict) else {}
+    prod_name = catalog.get("name") if isinstance(catalog, dict) else None
+    prod_name = prod_name or ticket.get("product") or ticket.get("product_name") or ticket.get("title") or "Laptop/Device"
+
     return {
         "id": ticket.get("id", "N/A"),
-        "product": ticket.get("product") or ticket.get("product_name") or "Unknown Product",
+        "product": prod_name,
         "category": ticket.get("category", "General"),
         "status": ticket.get("status", "Open"),
         "priority": ticket.get("priority", "Medium"),
@@ -147,8 +152,15 @@ def build_customer_context(
             if not is_dev:
                 raise RuntimeError(f"Database query failed: {e}")
 
+    # Fallback to client-provided products/tickets if DB query returned empty
+    if client_provided_context:
+        if not products and client_provided_context.get("products"):
+            products = [normalize_product(p) for p in client_provided_context.get("products", [])]
+        if not tickets and client_provided_context.get("tickets"):
+            tickets = [normalize_ticket(t) for t in client_provided_context.get("tickets", [])]
+
     # 4. Fallback to Local Mock JSON Storage if we are in development mode and no records were found
-    if is_dev and not profile:
+    if is_dev and not profile and not products:
         logger.info("[Customer Context] Database empty or unavailable. Falling back to local db.json.")
         name = "Alex Johnson"
         email_address = email or "alex@laptopcare.com"

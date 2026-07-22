@@ -1,5 +1,96 @@
 {
-  "tickets": [],
+  "tickets": [
+    {
+      "id": "TKT-80764",
+      "user_id": null,
+      "title": "Dell Inspiron 15 \u2014 Screen flickering intermittently",
+      "category": "Technical Support",
+      "status": "Open",
+      "priority": "High",
+      "description": "Issue: Screen flickering intermittently | Serial Number: DL12345 | Customer: John Doe | Email: john@example.com | Phone: 9876543210 | Conversation Summary: Customer reported screen flickering on Dell Inspiron 15",
+      "contact_method": "email",
+      "created_at": "2026-07-22T06:47:06.520859+00:00",
+      "updated_at": "2026-07-22T06:47:06.520859+00:00",
+      "product": "Dell Inspiron 15",
+      "date": "2026-07-22",
+      "timeline": [
+        "Open"
+      ],
+      "owner": null
+    },
+    {
+      "id": "TKT-95881",
+      "user_id": "7cd679e5-dd4d-400f-9ac4-2e4eb66d087c",
+      "title": "Lenovo ThinkPad X1 Carbon \u2014 Screen flickering",
+      "category": "Technical Support",
+      "status": "Open",
+      "priority": "High",
+      "description": "Issue: Screen flickering | Serial Number: PF31ABK2 | Customer: Vivek Vardhan | Email: vivekvardhan310@gmail.com | Phone: 7569828918 | Conversation Summary: Customer reported screen flickering issue with their ThinkPad X1 Carbon laptop.",
+      "contact_method": "email",
+      "created_at": "2026-07-22T06:49:48.384089+00:00",
+      "updated_at": "2026-07-22T06:49:48.384089+00:00",
+      "product": "Lenovo ThinkPad X1 Carbon",
+      "date": "2026-07-22",
+      "timeline": [
+        "Open"
+      ],
+      "owner": "7cd679e5-dd4d-400f-9ac4-2e4eb66d087c"
+    },
+    {
+      "id": "TKT-28531",
+      "user_id": "7cd679e5-dd4d-400f-9ac4-2e4eb66d087c",
+      "title": "Lenovo IdeaPad Slim 5 \u2014 Screen flickering",
+      "category": "Technical Support",
+      "status": "Open",
+      "priority": "High",
+      "description": "Issue: Screen flickering | Serial Number: MP5L8MH2 | Customer: Vivek Vardhan | Email: vivekvardhan310@gmail.com | Phone: 7569828918 | Conversation Summary: Customer reported screen flickering issue with their IdeaPad Slim 5 laptop.",
+      "contact_method": "email",
+      "created_at": "2026-07-22T06:49:49.506131+00:00",
+      "updated_at": "2026-07-22T06:49:49.506131+00:00",
+      "product": "Lenovo IdeaPad Slim 5",
+      "date": "2026-07-22",
+      "timeline": [
+        "Open"
+      ],
+      "owner": "7cd679e5-dd4d-400f-9ac4-2e4eb66d087c"
+    },
+    {
+      "id": "TKT-31024",
+      "user_id": "7cd679e5-dd4d-400f-9ac4-2e4eb66d087c",
+      "title": "Lenovo Legion 5 Pro \u2014 Screen flickering",
+      "category": "Technical Support",
+      "status": "Open",
+      "priority": "High",
+      "description": "Issue: Screen flickering | Serial Number: SL80PX120 | Customer: Vivek Vardhan | Email: vivekvardhan310@gmail.com | Phone: 7569828918 | Conversation Summary: Customer reported screen flickering issue with their Legion 5 Pro laptop.",
+      "contact_method": "email",
+      "created_at": "2026-07-22T06:49:50.207405+00:00",
+      "updated_at": "2026-07-22T06:49:50.207405+00:00",
+      "product": "Lenovo Legion 5 Pro",
+      "date": "2026-07-22",
+      "timeline": [
+        "Open"
+      ],
+      "owner": "7cd679e5-dd4d-400f-9ac4-2e4eb66d087c"
+    },
+    {
+      "id": "TKT-27517",
+      "user_id": "7cd679e5-dd4d-400f-9ac4-2e4eb66d087c",
+      "title": "Lenovo ThinkPad X1 Carbon \u2014 Screen flickering",
+      "category": "Technical Support",
+      "status": "Open",
+      "priority": "High",
+      "description": "Issue: Screen flickering | Serial Number: PF31ABK2 | Customer: Vivek Vardhan | Email: vivekvardhan310@gmail.com | Phone: 7569828918 | Conversation Summary: Customer reported screen flickering issue with their laptop.",
+      "contact_method": "email",
+      "created_at": "2026-07-22T06:52:23.067887+00:00",
+      "updated_at": "2026-07-22T06:52:23.067887+00:00",
+      "product": "Lenovo ThinkPad X1 Carbon",
+      "date": "2026-07-22",
+      "timeline": [
+        "Open"
+      ],
+      "owner": "7cd679e5-dd4d-400f-9ac4-2e4eb66d087c"
+    }
+  ],
   "feedback": [],
   "products": [
     {

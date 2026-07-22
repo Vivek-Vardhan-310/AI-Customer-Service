@@ -25,6 +25,7 @@ class UserContext(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     products: Optional[List[dict]] = None
+    tickets: Optional[List[dict]] = None
 
 class ChatRequest(BaseModel):
     message: str

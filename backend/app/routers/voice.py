@@ -28,6 +28,8 @@ from ..services.ai import groq_service, split_sentences
 from ..services.customer_context import build_customer_context
 from ..services.ai_prompt import build_system_prompt
 from ..services.conversation_manager import conversation_manager
+from ..tools import tool_dispatcher
+from ..tools.definitions import ALL_TOOL_DEFINITIONS
 
 router = APIRouter(tags=["voice"])
 logger = logging.getLogger("voice_ws")
@@ -79,9 +81,10 @@ async def voice_websocket(websocket: WebSocket):
     import uuid
     session_id = f"browser_{uuid.uuid4()}"
 
-    # Extract auth token from query params and attempt backend profile lookup immediately
     token = websocket.query_params.get("token")
     user_context = None
+    auth_user_id = None
+    auth_email = None
 
     if token:
         logger.info("[ws/voice] Authenticating token from query param.")
@@ -98,10 +101,13 @@ async def voice_websocket(websocket: WebSocket):
                 )
                 if resp.status_code == 200:
                     user_data = resp.json()
-                    user_id = user_data.get("id")
-                    email = user_data.get("email")
-                    logger.info(f"[ws/voice] Token authenticated successfully for {email}")
-                    user_context = build_customer_context(user_id=user_id, email=email, jwt=token)
+                    auth_user_id = user_data.get("id")
+                    auth_email = user_data.get("email")
+                    logger.info(f"[ws/voice] Token authenticated successfully for {auth_email}")
+                    user_context = build_customer_context(user_id=auth_user_id, email=auth_email, jwt=token)
+                    if user_context:
+                        user_context["id"] = auth_user_id
+                        user_context["jwt"] = token
             except Exception as e:
                 logger.error(f"[ws/voice] Auth verification failed: {e}")
 
@@ -143,79 +149,105 @@ async def voice_websocket(websocket: WebSocket):
         await websocket.send_json({"type": "transcript", "text": user_text})
         conversation_manager.append_message(session_id, "user", user_text)
         session = conversation_manager.get_session(session_id)
+        if not session:
+            await websocket.send_json({"type": "error", "message": "Session not found"})
+            return
 
         try:
-            stream = await asyncio.to_thread(
+            logger.info(f"[VOICE WS] Sending LLM call with tools. Tools available: {[t['function']['name'] for t in ALL_TOOL_DEFINITIONS]}")
+
+            completion = await asyncio.to_thread(
                 client.chat.completions.create,
                 model=os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
                 messages=session["history"],
+                tools=ALL_TOOL_DEFINITIONS,
+                tool_choice="auto",
                 temperature=float(os.environ.get("GROQ_TEMPERATURE", "0.7")),
                 max_completion_tokens=int(os.environ.get("GROQ_MAX_COMPLETION_TOKENS", "512")),
                 top_p=float(os.environ.get("GROQ_TOP_P", "1")),
-                stream=True,
+                stream=False,
             )
         except Exception as e:
             logger.error(f"LLM request failed: {e}")
             await websocket.send_json({"type": "error", "message": f"LLM failed: {e}"})
             return
 
-        full_response = ""
-        buffer = ""
-        sentence_idx = 0
+        first_message = completion.choices[0].message
+        tool_calls = getattr(first_message, "tool_calls", None)
 
-        try:
-            for chunk in stream:
-                if abort_flag:
-                    logger.info("Abort flag set — stopping LLM stream")
-                    break
+        if tool_calls:
+            logger.info(f"[VOICE WS] LLM requested {len(tool_calls)} tool call(s).")
+            user_context_for_tools = {
+                "user_id": session.get("user_id") or auth_user_id,
+                "email": session.get("email") or auth_email,
+                "jwt": session.get("jwt") or token,
+            }
 
-                delta = chunk.choices[0].delta if chunk.choices else None
-                if not delta or not delta.content:
-                    continue
+            session["history"].append({
+                "role": "assistant",
+                "content": getattr(first_message, "content", None) or "",
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in tool_calls
+                ],
+            })
 
-                token = delta.content
-                full_response += token
-                buffer += token
+            tool_results = tool_dispatcher.dispatch_all(tool_calls, context=user_context_for_tools)
 
-                try:
-                    await websocket.send_json({"type": "llm_token", "token": token})
-                except Exception:
-                    break
+            for result in tool_results:
+                session["history"].append(result)
+                logger.info(f"[VOICE WS] Tool result for '{result['name']}' appended to context.")
 
-                sentences, remainder = split_sentences(buffer)
-                if sentences:
-                    for sentence in sentences:
-                        if abort_flag:
-                            break
-                        try:
-                            await websocket.send_json({
-                                "type": "tts_text",
-                                "text": sentence,
-                                "idx": sentence_idx,
-                                "final": False
-                            })
-                            sentence_idx += 1
-                        except Exception:
-                            break
-                    buffer = remainder
-
-        except Exception as e:
-            logger.error(f"LLM streaming error: {e}")
-
-        if buffer.strip() and not abort_flag:
             try:
-                await websocket.send_json({
-                    "type": "tts_text",
-                    "text": buffer.strip(),
-                    "idx": sentence_idx,
-                    "final": True
-                })
-            except Exception:
-                pass
+                second_completion = await asyncio.to_thread(
+                    client.chat.completions.create,
+                    model=os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
+                    messages=session["history"],
+                    temperature=float(os.environ.get("GROQ_TEMPERATURE", "0.7")),
+                    max_completion_tokens=int(os.environ.get("GROQ_MAX_COMPLETION_TOKENS", "512")),
+                    top_p=float(os.environ.get("GROQ_TOP_P", "1")),
+                    stream=False,
+                )
+                full_response = groq_service.extract_reply(second_completion) or "I have processed your request."
+            except Exception as e:
+                logger.error(f"Second LLM call failed: {e}")
+                full_response = "I processed your request, but could not generate a verbal response."
+        else:
+            full_response = groq_service.extract_reply(completion) or "I'm sorry, I couldn't generate a response."
 
         if full_response:
             conversation_manager.append_message(session_id, "assistant", full_response)
             conversation_manager.trim_history(session_id, limit=20)
+
+            for char in full_response:
+                try:
+                    await websocket.send_json({"type": "llm_token", "token": char})
+                except Exception:
+                    break
+
+            sentences, _ = split_sentences(full_response)
+            if not sentences:
+                sentences = [full_response]
+
+            for sentence_idx, sentence in enumerate(sentences):
+                if abort_flag:
+                    break
+                try:
+                    await websocket.send_json({
+                        "type": "tts_text",
+                        "text": sentence,
+                        "idx": sentence_idx,
+                        "final": (sentence_idx == len(sentences) - 1)
+                    })
+                except Exception:
+                    break
 
         if not abort_flag:
             try:
@@ -264,6 +296,12 @@ async def voice_websocket(websocket: WebSocket):
 
                 elif data.get("type") == "user_context":
                     user_ctx = data.get("context", {})
+                    if token and "jwt" not in user_ctx:
+                        user_ctx["jwt"] = token
+                    if auth_user_id and "id" not in user_ctx:
+                        user_ctx["id"] = auth_user_id
+                    if auth_email and "email" not in user_ctx:
+                        user_ctx["email"] = auth_email
                     logger.info(f"Received user context for: {user_ctx.get('name', 'unknown')}")
                     conversation_manager.create_session(session_id, user_context=user_ctx, mode="voice")
 

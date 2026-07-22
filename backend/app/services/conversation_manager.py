@@ -47,10 +47,15 @@ class ConversationManager:
                 merged_context["tickets"] = [normalize_ticket(t) for t in user_context.get("tickets", [])]
             normalized_context = merged_context
 
-        system_prompt = build_system_prompt(normalized_context, mode=mode)
+        user_id = user_context.get("id") or user_context.get("user_id") or user_context.get("sub") if user_context else None
+        email = user_context.get("email") if user_context else None
+        jwt = user_context.get("jwt") if user_context else None
 
         self.sessions[session_id] = {
             "session_id": session_id,
+            "user_id": user_id,
+            "email": email,
+            "jwt": jwt,
             "user_context": normalized_context,
             "history": [{"role": "system", "content": system_prompt}],
             "created_at": now,
