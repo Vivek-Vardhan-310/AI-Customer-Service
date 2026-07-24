@@ -54,8 +54,9 @@ def build_system_prompt(user_context: Optional[Dict[str, Any]] = None, mode: str
     prompt = VOICE_SYSTEM_PROMPT_BASE if mode == "voice" else CHAT_SYSTEM_PROMPT_BASE
     prompt += HALLUCINATION_GUARDRAILS
 
-    # Ticket creation rules apply to both chat and voice interfaces
-    prompt += TICKET_CREATION_RULES
+    # Ticket creation rules are only relevant for the chat interface (not voice)
+    if mode == "chat":
+        prompt += TICKET_CREATION_RULES
 
     if user_context:
         context_parts = ["\n\nCustomer Context:"]
